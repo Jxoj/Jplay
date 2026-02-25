@@ -330,17 +330,32 @@
   .game-card:active { transform: translateY(0); }
 
   .game-card-thumb {
-    height: 100px;
+    height: 110px;
     background: var(--bg3);
     display: flex; align-items: center; justify-content: center;
     border-bottom: 1px solid var(--border);
     color: var(--green-faint);
-    font-size: 2rem;
-    font-family: var(--font-mono);
     position: relative;
     overflow: hidden;
   }
-  .game-card-thumb::before {
+  .game-card-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.22s ease, filter 0.22s ease;
+    filter: brightness(0.88) saturate(1.1);
+  }
+  .game-card:hover .game-card-thumb img {
+    transform: scale(1.05);
+    filter: brightness(1.05) saturate(1.25);
+  }
+  .game-card-thumb .thumb-fallback {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+    color: var(--green-faint);
+  }
+  .game-card-thumb .thumb-fallback svg { width: 36px; height: 36px; }
+  .game-card-thumb::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -348,12 +363,13 @@
       0deg,
       transparent,
       transparent 3px,
-      rgba(0,255,136,0.015) 3px,
-      rgba(0,255,136,0.015) 4px
+      rgba(0,0,0,0.07) 3px,
+      rgba(0,0,0,0.07) 4px
     );
     pointer-events: none;
+    z-index: 1;
   }
-  .game-card-thumb svg { width: 36px; height: 36px; }
+  .game-card-running { z-index: 2; }
 
   .game-card-info { padding: 10px 12px; }
   .game-card-title {
@@ -731,20 +747,14 @@ const ICONS = {
   user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a6 6 0 0112 0v2"/></svg>`
 };
 
-function gameIcon(iconKey) {
-  // Returns an SVG for game card thumbnails
-  const icons = {
-    snake: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><polyline points="3,12 8,12 8,7 14,7 14,17 19,17 19,12"/><circle cx="3" cy="12" r="1.5" fill="currentColor"/></svg>`,
-    runner: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><circle cx="12" cy="4" r="1.5"/><polyline points="8,20 12,14 16,20"/><polyline points="7,10 12,8 17,10"/><line x1="12" y1="8" x2="12" y2="14"/></svg>`,
-    hex: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><polygon points="12,2 20,7 20,17 12,22 4,17 4,7"/></svg>`,
-    maze: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="3" y="3" width="18" height="18"/><polyline points="7,3 7,9 13,9 13,15 3,15"/><polyline points="17,15 17,21"/><polyline points="17,3 17,7"/></svg>`,
-    war: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="3" y="11" width="4" height="4"/><rect x="10" y="11" width="4" height="4"/><rect x="17" y="11" width="4" height="4"/><rect x="3" y="5" width="4" height="4"/><rect x="17" y="5" width="4" height="4"/></svg>`,
-    stack: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="6" y="16" width="12" height="4"/><rect x="4" y="11" width="16" height="4"/><rect x="8" y="6" width="8" height="4"/></svg>`,
-    grep: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="14" x2="12" y2="14"/><line x1="3" y1="18" x2="9" y2="18"/><circle cx="17" cy="17" r="4"/><line x1="20" y1="20" x2="22" y2="22"/></svg>`,
-    fork: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><line x1="6" y1="7" x2="6" y2="12"/><line x1="18" y1="7" x2="18" y2="12"/><path d="M6,12 Q12,14 12,17"/><path d="M18,12 Q12,14 12,17"/></svg>`,
-    mem: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="2" y="6" width="20" height="12"/><line x1="6" y1="6" x2="6" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="18" y1="6" x2="18" y2="18"/><line x1="6" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="18" y2="10"/></svg>`
-  };
-  return icons[iconKey] || ICONS.gamepad;
+// Fallback SVG when no image is provided
+const FALLBACK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="2" y="6" width="20" height="12" rx="0"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>`;
+
+function thumbHTML(game) {
+  if (game.image) {
+    return `<img src="${game.image}" alt="${game.title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'thumb-fallback\\'>${FALLBACK_ICON.replace(/"/g,"'")}</div>'" />`;
+  }
+  return `<div class="thumb-fallback">${FALLBACK_ICON}</div>`;
 }
 
 // ===================== RENDER =====================
@@ -756,7 +766,7 @@ function renderGameCard(game, extraClass = '') {
   card.dataset.gameId = game.id;
   card.innerHTML = `
     <div class="game-card-thumb">
-      ${gameIcon(game.icon)}
+      ${thumbHTML(game)}
     </div>
     <div class="game-card-info">
       <div class="game-card-title">${game.title}</div>
@@ -800,9 +810,12 @@ function renderSidebar() {
   DATA.authors.forEach(author => {
     const item = document.createElement('div');
     item.className = 'author-item';
+    const avatarHTML = author.avatar
+      ? `<img src="${author.avatar}" alt="${author.name}" style="width:30px;height:30px;object-fit:cover;border:1px solid var(--border);" onerror="this.outerHTML='<div class=\\'author-avatar\\'>${author.initials}</div>'" />`
+      : `<div class="author-avatar">${author.initials}</div>`;
     item.innerHTML = `
       <div class="author-header">
-        <div class="author-avatar">${author.initials}</div>
+        ${avatarHTML}
         <div class="author-name"><span>Made by</span> ${author.name}</div>
         <span class="author-chevron">${ICONS.chevron}</span>
       </div>
@@ -815,7 +828,10 @@ function renderSidebar() {
       const fullGame = { ...game, authorId: author.id, authorName: author.name };
       const row = document.createElement('div');
       row.className = 'sidebar-game';
-      row.innerHTML = `${ICONS.play}<span>${game.title}</span>`;
+      const miniThumb = game.image
+        ? `<img src="${game.image}" alt="${game.title}" style="width:20px;height:20px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);filter:brightness(0.85);" onerror="this.outerHTML='${ICONS.play.replace(/"/g,"'")}'" />`
+        : ICONS.play;
+      row.innerHTML = `${miniThumb}<span>${game.title}</span>`;
       row.addEventListener('click', e => {
         e.stopPropagation();
         launchGame(game.id);
@@ -941,7 +957,12 @@ function launchGame(id) {
       ${game.url
         ? `<iframe src="${game.url}" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`
         : `<div class="game-window-placeholder">
-            <div class="big-icon">${gameIcon(game.icon)}</div>
+            <div class="big-icon">
+              ${game.image
+                ? `<img src="${game.image}" alt="${game.title}" style="width:80px;height:80px;object-fit:cover;border:1px solid var(--border);filter:brightness(0.7) saturate(0.8);" />`
+                : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="square" width="56" height="56"><rect x="2" y="6" width="20" height="12" rx="0"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>`
+              }
+            </div>
             <strong>${game.title}</strong><br/>
             <span style="opacity:0.5;font-size:0.75rem;">${game.description}</span><br/><br/>
             <span style="color:var(--green-faint);">// game binary not linked</span><br/>
