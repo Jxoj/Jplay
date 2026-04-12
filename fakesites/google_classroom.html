@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Classroom</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#f8f9fa;--sur:#fff;--bdr:#e0e0e0;--tx:#202124;--tx2:#5f6368;--act:#e8f0fe;--actx:#1a73e8;--hov:#f1f3f4;}
+body.dk{--bg:#1f1f1f;--sur:#2d2d2d;--bdr:#3c3c3c;--tx:#e8eaed;--tx2:#9aa0a6;--act:#283142;--actx:#8ab4f8;--hov:#3c3c3c;}
+body{font-family:'Google Sans',Roboto,Arial,sans-serif;background:var(--bg);transition:background .2s;min-height:100vh;}
+.wrap{display:flex;flex-direction:column;min-height:100vh;}
+.topbar{display:flex;align-items:center;background:var(--sur);height:64px;padding:0 8px 0 4px;border-bottom:1px solid var(--bdr);gap:4px;position:sticky;top:0;z-index:20;transition:background .2s,border-color .2s;}
+.ibtn{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s;border:none;background:transparent;}
+.ibtn:hover{background:var(--hov);}
+.brand{display:flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;}
+.brand-txt{font-size:22px;color:var(--tx2);font-weight:400;white-space:nowrap;}
+.bread{display:none;align-items:center;gap:6px;cursor:pointer;}
+.bread.on{display:flex;}
+.bread-sep{color:var(--tx2);font-size:20px;margin:0 2px;}
+.bread-pg{color:var(--tx);font-size:22px;font-weight:400;}
+.sp{flex:1;}
+.topright{display:flex;align-items:center;gap:2px;}
+.ava{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0;text-transform:uppercase;margin-left:4px;}
+.layout{display:flex;flex:1;}
+.sidebar{width:256px;background:var(--sur);flex-shrink:0;padding:8px 0;border-right:1px solid var(--bdr);min-height:calc(100vh - 64px);transition:background .2s,border-color .2s;}
+.nitem{display:flex;align-items:center;gap:16px;padding:0 16px;height:48px;cursor:pointer;border-radius:0 24px 24px 0;margin-right:8px;color:var(--tx);font-size:14px;font-weight:500;transition:background .15s;user-select:none;}
+.nitem:hover{background:var(--hov);}
+.nitem.on{background:var(--act);color:var(--actx);}
+body.dk .nitem svg{color:rgba(154,160,166,.85);}
+body.dk .nitem.on svg{color:#8ab4f8;}
+.nitem svg{color:var(--tx2);}
+.nitem.on svg{color:var(--actx);}
+.ndiv{height:1px;background:var(--bdr);margin:8px 0;transition:background .2s;}
+.main{flex:1;padding:24px;position:relative;background:var(--bg);transition:background .2s;}
+.view{display:none;}
+.view.on{display:block;}
+.banner{background:var(--act);border-radius:8px;padding:20px 48px 20px 24px;display:flex;align-items:center;gap:20px;margin-bottom:24px;position:relative;transition:background .2s;}
+.ban-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;}
+.ban-x:hover{background:rgba(128,128,128,.15);}
+.ban-img{width:80px;height:80px;object-fit:contain;flex-shrink:0;}
+.ban-h{font-size:18px;font-weight:500;color:var(--tx);margin-bottom:8px;}
+.ban-p{font-size:14px;color:var(--tx2);line-height:1.5;max-width:580px;}
+.ban-a{color:var(--actx);font-size:14px;font-weight:500;cursor:pointer;margin-top:12px;display:block;text-decoration:none;}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;}
+.ccard{background:var(--sur);border-radius:8px;overflow:hidden;border:1px solid var(--bdr);box-shadow:0 1px 2px rgba(0,0,0,.08);transition:background .2s,border-color .2s;}
+.chead{height:110px;padding:16px;display:flex;flex-direction:column;gap:10px;}
+.sb{height:13px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.18) 25%,rgba(255,255,255,.38) 50%,rgba(255,255,255,.18) 75%);background-size:200% 100%;animation:sh 1.6s infinite;}
+.sb.s{width:55%;height:11px;}
+.cbody{padding:16px 16px 14px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--bdr);}
+.sg{height:12px;border-radius:4px;background:linear-gradient(90deg,#ebebeb 25%,#f5f5f5 50%,#ebebeb 75%);background-size:200% 100%;animation:sh 1.6s infinite;}
+body.dk .sg{background:linear-gradient(90deg,#3a3a3a 25%,#444 50%,#3a3a3a 75%) !important;background-size:200% 100%;}
+.sg.s{width:45%;}
+.cfoot{padding:10px 12px;display:flex;justify-content:flex-end;gap:8px;}
+.si{width:30px;height:30px;border-radius:50%;background:linear-gradient(90deg,#ebebeb 25%,#f5f5f5 50%,#ebebeb 75%);background-size:200% 100%;animation:sh 1.6s infinite;}
+body.dk .si{background:linear-gradient(90deg,#3a3a3a 25%,#444 50%,#3a3a3a 75%) !important;background-size:200% 100%;}
+.ldg{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--tx2);font-size:13px;margin-top:28px;}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--bdr);border-top-color:#1a73e8;animation:spinr .85s linear infinite;flex-shrink:0;}
+.cal-bar{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.cal-sel{padding:0 36px 0 14px;height:44px;font-size:15px;border:2px solid var(--actx);border-radius:4px;background:var(--sur);color:var(--tx);cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%235f6368'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:240px;font-family:inherit;outline:none;transition:background .2s,border-color .2s,color .2s;}
+.cal-nav{display:flex;align-items:center;gap:4px;margin-left:4px;}
+.cal-nbtn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);transition:background .15s;border:none;background:transparent;}
+.cal-nbtn:hover{background:var(--hov);}
+.cal-rng{font-size:15px;color:var(--tx);white-space:nowrap;min-width:200px;text-align:center;}
+.cal-wrap{border:1px solid var(--bdr);border-radius:4px;overflow:hidden;background:var(--sur);transition:background .2s,border-color .2s;}
+.cal-hd{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--bdr);}
+.cal-dh{padding:12px 0;text-align:center;font-size:12px;color:var(--tx2);font-weight:500;border-right:1px solid var(--bdr);}
+.cal-dh:last-child{border-right:none;}
+.cal-dh .dn{font-size:26px;color:var(--tx);font-weight:400;margin-top:2px;}
+.cal-dh.tdy .dl{color:#1a73e8;}
+.dn-circle{width:44px;height:44px;background:#1a73e8;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:2px auto 0;font-size:26px;font-weight:400;}
+.cal-bd{display:grid;grid-template-columns:repeat(5,1fr);min-height:400px;}
+.cal-cell{border-right:1px solid var(--bdr);min-height:400px;}
+.cal-cell:last-child{border-right:none;}
+.arch-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;gap:16px;text-align:center;}
+.arch-empty p{font-size:16px;color:var(--tx2);}
+.sw{max-width:680px;}
+.ss{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;margin-bottom:20px;overflow:hidden;transition:background .2s,border-color .2s;}
+.ss-t{font-size:16px;font-weight:500;color:var(--tx);padding:16px 20px;border-bottom:1px solid var(--bdr);}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--bdr);}
+.sr:last-child{border-bottom:none;}
+.sr-l{flex:1;}
+.sr-lbl{font-size:14px;font-weight:500;color:var(--tx);margin-bottom:2px;}
+.sr-desc{font-size:13px;color:var(--tx2);line-height:1.5;}
+.sr-desc a{color:var(--actx);text-decoration:none;font-weight:500;}
+.tog{position:relative;width:36px;height:20px;flex-shrink:0;margin-left:16px;display:inline-block;cursor:pointer;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-trk{position:absolute;inset:0;border-radius:10px;background:#bdc1c6;cursor:pointer;transition:background .2s;}
+.tog input:checked+.tog-trk{background:#1a73e8;}
+.tog-th{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;pointer-events:none;}
+.tog input:checked~.tog-th{transform:translateX(16px);}
+.pfp{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:500;flex-shrink:0;text-transform:uppercase;cursor:pointer;}
+.help-btn{position:fixed;bottom:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--sur);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+body.dk .help-btn img,body.dk .ibtn img,body.dk .cal-nbtn img{filter:brightness(0) invert(.65);}
+@keyframes sh{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+@keyframes spinr{to{transform:rotate(360deg);}}
+@keyframes fu{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <button class="ibtn"><img src="https://www.gstatic.com/images/icons/material/system/1x/menu_grey600_24dp.png" width="24" height="24" alt=""></button>
+    <div class="brand" id="brandHome">
+      <img src="https://www.gstatic.com/classroom/logo_square_rounded.svg" width="28" height="28" alt="Classroom">
+      <span class="brand-txt">Classroom</span>
+    </div>
+    <div class="bread" id="bread">
+      <img src="https://www.gstatic.com/classroom/logo_square_rounded.svg" width="22" height="22" alt="">
+      <span class="brand-txt">Classroom</span>
+      <span class="bread-sep">&#8250;</span>
+      <span class="bread-pg" id="breadPg"></span>
+    </div>
+    <div class="sp"></div>
+    <div class="topright">
+      <button class="ibtn" id="dkBtn" title="Toggle dark mode">
+        <img src="https://www.gstatic.com/images/icons/material/system/1x/brightness_medium_grey600_24dp.png" width="24" height="24" alt="Dark mode">
+      </button>
+      <button class="ibtn">
+        <img src="https://www.gstatic.com/images/icons/material/system/1x/apps_grey600_24dp.png" width="24" height="24" alt="Apps">
+      </button>
+      <div class="ava" id="ava"></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nitem on" data-v="home">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Home
+      </div>
+      <div class="nitem" data-v="cal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M20 3h-1V1h-2v2H7V1H5v2H4C2.9 3 2 3.9 2 5v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>Calendar
+      </div>
+      <div class="ndiv"></div>
+      <div class="nitem" data-v="arch">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M20 2H4c-1.1 0-2 .9-2 2v4c0 .74.41 1.38 1 1.72V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V9.72c.59-.34 1-.98 1-1.72V4c0-1.1-.9-2-2-2zm-5 12H9v-2h6v2zm5-8H4V4h16v2z"/></svg>Archived classes
+      </div>
+      <div class="nitem" data-v="set">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Settings
+      </div>
+    </div>
+
+    <div class="main">
+
+      <div class="view on" id="v-home">
+        <div class="banner" id="banner">
+          <img class="ban-img" src="https://www.gstatic.com/classroom/web/user_education/uxr_recruitment_education_card_v2.png" alt="Research">
+          <div>
+            <div class="ban-h">Participate in research to improve Classroom</div>
+            <div class="ban-p">Help shape the future of educational technology by sharing your expertise. Join our growing group of Classroom users to help make Google for Education tools better for your school, students and you.</div>
+            <a class="ban-a" href="https://userresearch.google.com/edu/" target="_blank">Learn more</a>
+          </div>
+          <div class="ban-x" id="banX">
+            <img src="https://www.gstatic.com/images/icons/material/system/1x/close_grey600_24dp.png" width="18" height="18" alt="Close">
+          </div>
+        </div>
+        <div class="cgrid" id="cgrid"></div>
+        <div class="ldg"><div class="spin"></div>Loading your classes...</div>
+      </div>
+
+      <div class="view" id="v-cal">
+        <div class="cal-bar">
+          <select class="cal-sel"><option>All classes</option></select>
+          <div class="cal-nav">
+            <button class="cal-nbtn" id="cp">
+              <img src="https://www.gstatic.com/images/icons/material/system/1x/chevron_left_grey600_24dp.png" width="20" height="20" alt="Prev">
+            </button>
+            <span class="cal-rng" id="crng"></span>
+            <button class="cal-nbtn" id="cn">
+              <img src="https://www.gstatic.com/images/icons/material/system/1x/chevron_right_grey600_24dp.png" width="20" height="20" alt="Next">
+            </button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <div class="cal-wrap" style="min-width:600px;">
+            <div class="cal-hd" id="chd"></div>
+            <div class="cal-bd" id="cbd"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="v-arch">
+        <div class="arch-empty">
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+            <rect x="10" y="35" width="100" height="70" rx="6" fill="#dadce0"/>
+            <rect x="20" y="52" width="80" height="8" rx="4" fill="#bdc1c6"/>
+            <rect x="20" y="67" width="55" height="8" rx="4" fill="#bdc1c6"/>
+            <rect x="5" y="22" width="110" height="22" rx="4" fill="#bdc1c6"/>
+            <rect x="40" y="22" width="40" height="22" fill="#c8cacf"/>
+          </svg>
+          <p>None of your classes have been archived.</p>
+        </div>
+      </div>
+
+      <div class="view" id="v-set">
+        <div class="sw">
+          <div class="ss">
+            <div class="ss-t">Profile</div>
+            <div class="sr">
+              <div class="sr-l"><div class="sr-lbl">Profile picture</div></div>
+              <div class="pfp" id="spfp"></div>
+            </div>
+            <div class="sr">
+              <div class="sr-l">
+                <div class="sr-lbl">Account settings</div>
+                <div class="sr-desc">Change your password and security options, and access other Google services. <a href="https://myaccount.google.com" target="_blank">Manage</a></div>
+              </div>
+            </div>
+            <div class="sr">
+              <div class="sr-l">
+                <div class="sr-lbl">Change name</div>
+                <div class="sr-desc">To change your name, go to your <a href="https://myaccount.google.com" target="_blank">account settings</a>.</div>
+              </div>
+            </div>
+          </div>
+          <div class="ss">
+            <div class="ss-t">Notifications</div>
+            <div class="sr">
+              <div class="sr-l"><div class="sr-lbl">Allow email notifications</div></div>
+              <label class="tog"><input type="checkbox" checked><div class="tog-trk"></div><div class="tog-th"></div></label>
+            </div>
+            <div class="sr"><div class="sr-l"><div class="sr-lbl">Comments</div></div></div>
+            <div class="sr" style="padding-left:36px;">
+              <div class="sr-l"><div class="sr-lbl" style="font-weight:400;">Comments on your posts</div></div>
+              <label class="tog"><input type="checkbox" checked><div class="tog-trk"></div><div class="tog-th"></div></label>
+            </div>
+            <div class="sr" style="padding-left:36px;">
+              <div class="sr-l"><div class="sr-lbl" style="font-weight:400;">Comments that mention you</div></div>
+              <label class="tog"><input type="checkbox" checked><div class="tog-trk"></div><div class="tog-th"></div></label>
+            </div>
+            <div class="sr" style="padding-left:36px;">
+              <div class="sr-l"><div class="sr-lbl" style="font-weight:400;">Private comments on work</div></div>
+              <label class="tog"><input type="checkbox"><div class="tog-trk"></div><div class="tog-th"></div></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="help-btn">
+  <img src="https://www.gstatic.com/images/icons/material/system/1x/help_outline_grey600_24dp.png" width="20" height="20" alt="Help">
+</div>
+
+<script>
+/* ── Hackwize postMessage bridge ─────────────────────────────────────────── */
+(function() {
+  var HW_KEY = '0';
+  document.addEventListener('keydown', function(e) {
+    if (e.key === HW_KEY) {
+      e.preventDefault();
+      try { window.parent.postMessage('hw:restore', '*'); } catch (_) {}
+    }
+  }, true);
+})();
+
+/* ── Parse URL params ────────────────────────────────────────────────────── */
+var params = new URLSearchParams(window.location.search);
+var uname  = params.get('user')  || 'Student';
+var ucolor = params.get('color') || '1a73e8';
+
+/* Ensure # prefix — Hackwize strips it before appending to the URL */
+if (ucolor.charAt(0) !== '#') ucolor = '#' + ucolor;
+
+var ini = uname.charAt(0).toUpperCase();
+
+/* Only the avatar gets the custom color — everything else stays Google blue */
+document.getElementById('ava').textContent       = ini;
+document.getElementById('ava').style.background  = ucolor;
+document.getElementById('spfp').textContent      = ini;
+document.getElementById('spfp').style.background = ucolor;
+
+/* ── Banner close ────────────────────────────────────────────────────────── */
+document.getElementById('banX').addEventListener('click', function() {
+  document.getElementById('banner').style.display = 'none';
+});
+
+/* ── Class cards ─────────────────────────────────────────────────────────── */
+var cardColors = ['#1565c0','#1e7e34','#6a1b9a','#00695c','#b71c1c'];
+var grid = document.getElementById('cgrid');
+for (var i = 0; i < 4; i++) {
+  var c = document.createElement('div');
+  c.className = 'ccard';
+  c.style.cssText = 'animation:fu .35s ease ' + (i * 0.1) + 's both;';
+  c.innerHTML =
+    '<div class="chead" style="background:' + cardColors[i % cardColors.length] + ';">' +
+      '<div class="sb" style="width:65%;"></div>' +
+      '<div class="sb s"></div>' +
+    '</div>' +
+    '<div class="cbody">' +
+      '<div class="sg" style="width:60%;"></div>' +
+      '<div class="sg s"></div>' +
+    '</div>' +
+    '<div class="cfoot">' +
+      '<div class="si"></div><div class="si"></div><div class="si"></div>' +
+    '</div>';
+  grid.appendChild(c);
+}
+
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+var PAGES  = {home:'Home', cal:'Calendar', arch:'Archived classes', set:'Settings'};
+var nitems = document.querySelectorAll('.nitem');
+
+function go(v) {
+  nitems.forEach(function(n) { n.classList.toggle('on', n.dataset.v === v); });
+  document.querySelectorAll('.view').forEach(function(x) { x.classList.toggle('on', x.id === 'v-' + v); });
+  var bh = document.getElementById('brandHome');
+  var br = document.getElementById('bread');
+  if (v === 'home') {
+    bh.style.display = 'flex'; br.classList.remove('on'); document.title = 'Classroom';
+  } else {
+    bh.style.display = 'none'; br.classList.add('on');
+    document.getElementById('breadPg').textContent = PAGES[v];
+    document.title = PAGES[v] + ' - Classroom';
+  }
+  if (v === 'cal') buildCal();
+}
+
+nitems.forEach(function(n) { n.addEventListener('click', function() { go(n.dataset.v); }); });
+document.getElementById('brandHome').addEventListener('click', function() { go('home'); });
+document.getElementById('bread').addEventListener('click', function() { go('home'); });
+
+/* ── Calendar ────────────────────────────────────────────────────────────── */
+var wo = 0;
+var DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function buildCal() {
+  var now  = new Date();
+  var base = new Date(now);
+  base.setDate(now.getDate() + wo * 7);
+  var sun = new Date(base);
+  sun.setDate(base.getDate() - base.getDay());
+  var days = [];
+  for (var i = 0; i < 5; i++) { var d = new Date(sun); d.setDate(sun.getDate() + i); days.push(d); }
+  var s = days[0], e = days[4];
+  document.getElementById('crng').textContent =
+    MONTHS[s.getMonth()] + ' ' + s.getDate() + ' \u2013 ' + MONTHS[e.getMonth()] + ' ' + e.getDate() + ', ' + e.getFullYear();
+  var hd = document.getElementById('chd'), bd = document.getElementById('cbd');
+  hd.innerHTML = ''; bd.innerHTML = '';
+  days.forEach(function(d) {
+    var isToday = d.toDateString() === now.toDateString();
+    var h = document.createElement('div');
+    h.className = 'cal-dh' + (isToday ? ' tdy' : '');
+    h.innerHTML = '<div class="dl">' + DAYS[d.getDay()] + '</div>' +
+      (isToday ? '<div class="dn-circle">' + d.getDate() + '</div>' : '<div class="dn">' + d.getDate() + '</div>');
+    hd.appendChild(h);
+    var cell = document.createElement('div'); cell.className = 'cal-cell'; bd.appendChild(cell);
+  });
+}
+
+document.getElementById('cp').addEventListener('click', function() { wo--; buildCal(); });
+document.getElementById('cn').addEventListener('click', function() { wo++; buildCal(); });
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+var dark = false;
+document.getElementById('dkBtn').addEventListener('click', function() {
+  dark = !dark; document.body.classList.toggle('dk', dark);
+});
+</script>
+</body>
+</html>

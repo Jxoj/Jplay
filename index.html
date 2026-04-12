@@ -1,1080 +1,530 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jplay</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<style>
-  /* ===================== RESET & BASE ===================== */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:        #080b08;
-    --bg2:       #0d120d;
-    --bg3:       #121a12;
-    --border:    #1a2e1a;
-    --green:     #00ff88;
-    --green-dim: #00b85f;
-    --green-faint:#004422;
-    --green-glow: rgba(0,255,136,0.18);
-    --text:      #c8f0d8;
-    --text-dim:  #5a7a5a;
-    --red:       #ff4444;
-    --yellow:    #ffe066;
-    --bar-h:     48px;
-    --sidebar-w: 280px;
-    --font-mono: 'Share Tech Mono', monospace;
-    --font-ui:   'Rajdhani', sans-serif;
-  }
-
-  html, body {
-    width: 100%; height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-ui);
-    overflow: hidden;
-    user-select: none;
-  }
-
-  /* ===================== LAYOUT ===================== */
-  #app {
-    display: flex;
-    flex-direction: column;
-    width: 100vw; height: 100vh;
-  }
-
-  #topbar {
-    height: var(--bar-h);
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 12px;
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  #main-area {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    position: relative;
-  }
-
-  #sidebar {
-    width: var(--sidebar-w);
-    background: var(--bg2);
-    border-right: 1px solid var(--border);
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    transform: translateX(calc(-1 * var(--sidebar-w)));
-    transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    z-index: 50;
-    overflow: hidden;
-  }
-  #sidebar.open { transform: translateX(0); }
-
-  #sidebar-overlay {
-    display: none;
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 49;
-  }
-  #sidebar-overlay.visible { display: block; }
-
-  #content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--green-faint) transparent;
-  }
-
-  #bottombar {
-    height: var(--bar-h);
-    background: var(--bg2);
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 8px;
-    flex-shrink: 0;
-    z-index: 100;
-  }
-
-  /* ===================== TOPBAR ===================== */
-  #logo {
-    font-family: var(--font-mono);
-    font-size: 1.3rem;
-    color: var(--green);
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
-    text-shadow: 0 0 12px var(--green);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  #logo svg { width: 22px; height: 22px; }
-
-  #menu-btn {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim);
-    display: flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px;
-    border: 1px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
-  }
-  #menu-btn:hover { color: var(--green); border-color: var(--border); }
-
-  #search-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    padding: 0 10px;
-    height: 32px;
-    max-width: 480px;
-    transition: border-color 0.15s;
-  }
-  #search-wrap:focus-within { border-color: var(--green-dim); box-shadow: 0 0 0 1px var(--green-faint); }
-  #search-wrap svg { width:15px; height:15px; color: var(--text-dim); flex-shrink:0; }
-  #search-input {
-    flex: 1;
-    background: none; border: none; outline: none;
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    color: var(--text);
-    letter-spacing: 0.04em;
-  }
-  #search-input::placeholder { color: var(--text-dim); }
-  #search-clear {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim); display: none; align-items: center;
-    padding: 0;
-  }
-  #search-clear.visible { display: flex; }
-  #search-clear:hover { color: var(--red); }
-
-  /* ===================== BOTTOMBAR ===================== */
-  .bar-btn {
-    background: none; border: 1px solid transparent;
-    color: var(--text-dim);
-    cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-    height: 32px; padding: 0 10px;
-    font-family: var(--font-ui); font-size: 0.82rem; font-weight: 600;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    transition: color 0.15s, border-color 0.15s, background 0.15s;
-  }
-  .bar-btn svg { width: 16px; height: 16px; }
-  .bar-btn:hover { color: var(--green); border-color: var(--border); background: var(--bg3); }
-  .bar-btn.active { color: var(--green); border-color: var(--green-dim); background: var(--green-faint); }
-
-  #open-games-count {
-    background: var(--green);
-    color: var(--bg);
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 700;
-    width: 16px; height: 16px;
-    display: none;
-    align-items: center; justify-content: center;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-  #open-games-count.visible { display: flex; }
-
-  /* ===================== SIDEBAR ===================== */
-  #sidebar-header {
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  #sidebar-title {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--green-dim);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-  #sidebar-close {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim); display: flex; align-items: center;
-    transition: color 0.15s;
-  }
-  #sidebar-close:hover { color: var(--red); }
-
-  #authors-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 0;
-    scrollbar-width: thin;
-    scrollbar-color: var(--green-faint) transparent;
-  }
-
-  .author-item { border-bottom: 1px solid var(--border); }
-
-  .author-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 16px;
-    cursor: pointer;
-    transition: background 0.12s;
-  }
-  .author-header:hover { background: var(--bg3); }
-  .author-avatar {
-    width: 30px; height: 30px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-    color: var(--green-dim);
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-  }
-  .author-name {
-    flex: 1;
-    font-size: 0.85rem; font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.03em;
-  }
-  .author-name span { color: var(--text-dim); font-weight: 400; }
-  .author-chevron {
-    color: var(--text-dim);
-    transition: transform 0.18s;
-  }
-  .author-item.expanded .author-chevron { transform: rotate(90deg); }
-
-  .author-games {
-    display: none;
-    padding: 4px 0 8px 0;
-    background: var(--bg);
-  }
-  .author-item.expanded .author-games { display: block; }
-
-  .sidebar-game {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 16px 7px 56px;
-    cursor: pointer;
-    transition: background 0.12s;
-    font-size: 0.82rem;
-    color: var(--text-dim);
-    letter-spacing: 0.02em;
-  }
-  .sidebar-game:hover { background: var(--bg3); color: var(--green); }
-  .sidebar-game svg { width: 13px; height: 13px; flex-shrink: 0; }
-
-  /* ===================== MAIN CONTENT ===================== */
-  #empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 16px;
-    color: var(--text-dim);
-  }
-  #empty-state svg { width: 48px; height: 48px; color: var(--green-faint); }
-  #empty-state h2 {
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    color: var(--text-dim);
-    letter-spacing: 0.08em;
-  }
-  #empty-state p { font-size: 0.85rem; color: var(--text-dim); opacity: 0.6; }
-
-  .section-title {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--green-dim);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .game-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-    margin-bottom: 32px;
-  }
-
-  .game-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
-    position: relative;
-    overflow: hidden;
-  }
-  .game-card:hover {
-    border-color: var(--green-dim);
-    box-shadow: 0 0 12px var(--green-glow);
-    transform: translateY(-2px);
-  }
-  .game-card:active { transform: translateY(0); }
-
-  .game-card-thumb {
-    height: 110px;
-    background: var(--bg3);
-    display: flex; align-items: center; justify-content: center;
-    border-bottom: 1px solid var(--border);
-    color: var(--green-faint);
-    position: relative;
-    overflow: hidden;
-  }
-  .game-card-thumb img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    display: block;
-    transition: transform 0.22s ease, filter 0.22s ease;
-    filter: brightness(0.88) saturate(1.1);
-  }
-  .game-card:hover .game-card-thumb img {
-    transform: scale(1.05);
-    filter: brightness(1.05) saturate(1.25);
-  }
-  .game-card-thumb .thumb-fallback {
-    display: flex; align-items: center; justify-content: center;
-    width: 100%; height: 100%;
-    color: var(--green-faint);
-  }
-  .game-card-thumb .thumb-fallback svg { width: 36px; height: 36px; }
-  .game-card-thumb::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 3px,
-      rgba(0,0,0,0.07) 3px,
-      rgba(0,0,0,0.07) 4px
-    );
-    pointer-events: none;
-    z-index: 1;
-  }
-  .game-card-running { z-index: 2; }
-
-  .game-card-info { padding: 10px 12px; }
-  .game-card-title {
-    font-size: 0.9rem; font-weight: 700;
-    color: var(--text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    letter-spacing: 0.02em;
-    margin-bottom: 3px;
-  }
-  .game-card-author {
-    font-size: 0.72rem; color: var(--text-dim);
-    font-family: var(--font-mono);
-    letter-spacing: 0.04em;
-  }
-
-  .game-card-running {
-    position: absolute; top: 6px; right: 6px;
-    width: 7px; height: 7px;
-    background: var(--green);
-    border-radius: 50%;
-    box-shadow: 0 0 6px var(--green);
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-  @keyframes pulse {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  /* ===================== SEARCH RESULTS ===================== */
-  #search-results { display: none; }
-  #search-results.visible { display: block; }
-  #home-view { display: block; }
-  #home-view.hidden { display: none; }
-
-  /* ===================== OPEN GAMES PANEL ===================== */
-  #open-games-panel {
-    position: absolute;
-    bottom: var(--bar-h);
-    left: 80px;
-    width: 320px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
-    z-index: 200;
-    display: none;
-    flex-direction: column;
-    max-height: 360px;
-  }
-  #open-games-panel.visible { display: flex; }
-
-  .panel-header {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--green-dim);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .panel-empty {
-    padding: 24px 16px;
-    text-align: center;
-    font-size: 0.82rem;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-  }
-
-  .open-game-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.12s;
-  }
-  .open-game-row:last-child { border-bottom: none; }
-  .open-game-row:hover { background: var(--bg3); }
-  .open-game-dot {
-    width: 6px; height: 6px;
-    background: var(--green);
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 0 4px var(--green);
-  }
-  .open-game-name {
-    flex: 1;
-    font-size: 0.85rem; font-weight: 600;
-    color: var(--text);
-    letter-spacing: 0.02em;
-  }
-  .open-game-author {
-    font-size: 0.7rem; color: var(--text-dim);
-    font-family: var(--font-mono);
-  }
-  .close-game-btn {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim); display: flex; align-items: center;
-    padding: 2px;
-    transition: color 0.12s;
-  }
-  .close-game-btn:hover { color: var(--red); }
-
-  /* ===================== GAME WINDOW ===================== */
-  #game-windows {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 300;
-  }
-
-  .game-window {
-    position: absolute;
-    inset: 0;
-    background: var(--bg);
-    pointer-events: all;
-    display: flex;
-    flex-direction: column;
-    animation: winOpen 0.18s ease-out;
-  }
-  @keyframes winOpen {
-    from { opacity: 0; transform: scale(0.97); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-
-  .game-window-titlebar {
-    height: 38px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 10px;
-    padding: 0 12px;
-    flex-shrink: 0;
-  }
-  .game-window-title {
-    flex: 1;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    color: var(--green-dim);
-    letter-spacing: 0.06em;
-  }
-  .game-window-close {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim); display: flex; align-items: center;
-    transition: color 0.12s;
-  }
-  .game-window-close:hover { color: var(--red); }
-
-  .game-window-body {
-    flex: 1;
-    overflow: hidden;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .game-window-body iframe {
-    width: 100%; height: 100%;
-    border: none;
-    background: #000;
-  }
-  .game-window-placeholder {
-    text-align: center;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    line-height: 1.8;
-  }
-  .game-window-placeholder .big-icon { color: var(--green-faint); margin-bottom: 16px; }
-  .game-window-placeholder .big-icon svg { width: 56px; height: 56px; }
-  .game-window-placeholder strong { color: var(--green-dim); font-size: 1.1rem; }
-
-  /* ===================== SCROLLBAR ===================== */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--green-faint); }
-
-  /* ===================== SCANLINES OVERLAY ===================== */
-  body::after {
-    content: '';
-    pointer-events: none;
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      rgba(0,0,0,0.06) 0px,
-      rgba(0,0,0,0.06) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    z-index: 9999;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Home</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=20260412" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    /* Mimic color picker row */
+    .mimic-color-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mimic-color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.18);
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .mimic-color-swatch:hover { border-color: rgba(255,255,255,0.45); }
+    .mimic-color-hex {
+      width: 80px;
+      font-family: monospace;
+      font-size: 0.82rem;
+    }
+    /* Hidden native color input, triggered by swatch click */
+    #mimic-color-native {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 0;
+      height: 0;
+    }
+  </style>
 </head>
-<body>
-<div id="app">
+<body data-theme="dark" data-density="normal">
 
-  <!-- TOP BAR -->
-  <div id="topbar">
-    <button id="menu-btn" aria-label="Menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-      </svg>
-    </button>
-    <div id="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square">
-        <polygon points="5,3 19,12 5,21 5,3" fill="currentColor" opacity="0.3" stroke="currentColor"/>
-        <line x1="19" y1="12" x2="24" y2="12" stroke-width="1.5"/>
-      </svg>
-      JPLAY
+<div id="bg-image-layer"></div>
+<canvas id="bg-canvas"></canvas>
+<div id="ripple-container"></div>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-top">
+    <div class="sidebar-brand">
+      <img src="assets/imgs/logo.png"  alt="Jplay" class="sidebar-logo"      onerror="this.style.display='none'" />
+      <img src="assets/imgs/text.png"  alt="Jplay" class="sidebar-text-logo" onerror="this.style.display='none'" />
     </div>
-    <div id="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input id="search-input" type="text" placeholder="Search games..." autocomplete="off" spellcheck="false" />
-      <button id="search-clear" aria-label="Clear">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </div>
+
+  <nav class="sidebar-nav">
+    <button class="sidebar-item active" data-page="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="sidebar-item" data-page="library">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="7" height="18" rx="1"/><rect x="9" y="3" width="7" height="18" rx="1"/><rect x="16" y="3" width="7" height="18" rx="1"/></svg>
+      <span>Library</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-bottom">
+    <button class="sidebar-item" data-page="settings" onclick="jplayForceSettingsFallback()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ═══ APP SHELL ═══ -->
+<div class="app-shell">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle Sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
+      <span class="topbar-page-title" id="topbar-page-title">Home</span>
     </div>
-  </div>
-
-  <!-- MAIN AREA -->
-  <div id="main-area">
-    <!-- SIDEBAR OVERLAY -->
-    <div id="sidebar-overlay"></div>
-
-    <!-- SIDEBAR -->
-    <div id="sidebar">
-      <div id="sidebar-header">
-        <span id="sidebar-title">Authors</span>
-        <button id="sidebar-close" aria-label="Close sidebar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" width="16" height="16">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+    <div class="topbar-center" id="topbar-search-area">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" class="search-input" placeholder="Search games…" />
+        <kbd class="search-kbd">/</kbd>
       </div>
-      <div id="authors-list"></div>
     </div>
-
-    <!-- CONTENT -->
-    <div id="content">
-      <!-- HOME VIEW -->
-      <div id="home-view">
-        <div id="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <h2>Try searching to get started</h2>
-          <p>Search for a game above, or browse authors in the sidebar</p>
-        </div>
-        <div id="last-played-section" style="display:none;">
-          <div class="section-title">Last Played</div>
-          <div id="last-played-grid" class="game-grid"></div>
-          <div class="section-title">All Games</div>
-          <div id="all-games-grid" class="game-grid"></div>
+    <div class="topbar-right">
+      <div class="sort-menu" id="sort-menu">
+        <button class="nav-btn" id="sort-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+          <span>Sort</span>
+        </button>
+        <div class="sort-dropdown" id="sort-dropdown">
+          <button class="sort-option active" data-sort="default" type="button">Default</button>
+          <button class="sort-option" data-sort="az" type="button">A – Z</button>
+          <button class="sort-option" data-sort="za" type="button">Z – A</button>
+          <button class="sort-option" data-sort="popular" type="button">Popular</button>
+          <button class="sort-option" data-sort="newest" type="button">Newest</button>
         </div>
       </div>
-      <!-- SEARCH RESULTS -->
-      <div id="search-results">
-        <div class="section-title">Search Results</div>
-        <div id="search-results-grid" class="game-grid"></div>
-        <div id="search-no-results" style="display:none; color:var(--text-dim); font-family:var(--font-mono); font-size:0.82rem;">No games found.</div>
-      </div>
+      <button class="nav-btn" id="random-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        <span>Random</span>
+      </button>
     </div>
+  </header>
 
-    <!-- OPEN GAMES PANEL -->
-    <div id="open-games-panel">
-      <div class="panel-header">
-        <span>Open Games</span>
-        <button id="panel-close-btn" style="background:none;border:none;cursor:pointer;color:var(--text-dim);display:flex;align-items:center;" aria-label="Close panel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+  <!-- PAGES -->
+  <div class="pages-wrap">
+
+    <main class="page" id="page-home" style="display:none"></main>
+
+    <!-- LIBRARY -->
+    <main class="page" id="page-library" style="display:none">
+      <div class="library-header">
+        <h2 class="section-title">My Library</h2>
+        <span class="section-count" id="library-count"></span>
+      </div>
+      <div class="library-empty" id="library-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2" y="3" width="7" height="18" rx="1"/><rect x="9" y="3" width="7" height="18" rx="1"/><rect x="16" y="3" width="7" height="18" rx="1"/></svg>
+        <p>Your library is empty</p>
+        <span>Save games from the Home screen using the bookmark icon</span>
+      </div>
+      <div class="tiles-grid" id="library-grid"></div>
+    </main>
+
+    <!-- SETTINGS -->
+    <main class="page" id="page-settings" style="display:none">
+      <div class="settings-page-header">
+        <h2 class="settings-page-title">Settings</h2>
+        <span class="settings-page-sub">Customize your Jplay experience</span>
+      </div>
+
+      <div class="settings-columns">
+
+        <!-- LEFT -->
+        <div class="settings-col">
+
+          <div class="settings-card">
+            <div class="settings-card-label">Appearance</div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Theme</span><span class="setting-desc">Interface color scheme</span></div>
+              <select class="setting-select" id="theme-select">
+                <option value="dark" selected>Dark</option>
+                <option value="darker">Darker</option>
+                <option value="midnight">Midnight</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">UI Density</span><span class="setting-desc">Spacing and sizing</span></div>
+              <select class="setting-select" id="density-select">
+                <option value="compact">Compact</option>
+                <option value="normal" selected>Normal</option>
+                <option value="comfortable">Comfortable</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">Background</div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Source</span><span class="setting-desc">What fills the background</span></div>
+              <select class="setting-select" id="bg-source-select">
+                <option value="image">Default</option>
+                <option value="wallpaper">Wallpapers</option>
+                <option value="custom">Custom Upload</option>
+                <option value="color">Solid Color</option>
+              </select>
+            </div>
+            <div style="display:none" id="wallpaper-picker-zone">
+              <div class="wallpaper-grid" id="wallpaper-grid"><span class="wallpaper-empty">Loading…</span></div>
+            </div>
+            <div style="display:none" id="bg-upload-zone">
+              <input type="file" id="bg-file-input" accept="image/*" style="display:none" />
+              <div class="upload-drop-area" id="upload-drop-area">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                <span class="upload-label">Drop image here</span>
+                <span class="upload-hint">or click to browse</span>
+                <button class="upload-browse-btn" id="upload-browse-btn">Browse</button>
+              </div>
+              <div style="display:none" id="upload-preview">
+                <img id="upload-preview-img" src="" alt="Preview" />
+                <div class="upload-preview-info">
+                  <span id="upload-preview-name"></span>
+                  <button class="upload-change-btn" id="upload-change-btn">Change</button>
+                </div>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Darkness</span><span class="setting-desc">Overlay dim level</span></div>
+              <div class="inline-slider"><input type="range" class="setting-range" id="bg-dim-slider" min="0" max="90" value="55" /><span class="slider-value" id="bg-dim-value">55%</span></div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Blur</span><span class="setting-desc">Background blur amount</span></div>
+              <div class="inline-slider"><input type="range" class="setting-range" id="bg-blur-slider" min="0" max="20" value="0" /><span class="slider-value" id="bg-blur-value">0px</span></div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">Access</div>
+            <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:10px;border-bottom:none;padding-bottom:0">
+              <div class="setting-info"><span class="setting-name">Global Password</span><span class="setting-desc">Games open with this password appended</span></div>
+              <div class="password-input-wrap">
+                <input type="password" class="setting-input password-field" id="global-password-input" placeholder="Enter password…" autocomplete="new-password" />
+                <button class="password-toggle-btn" id="password-toggle-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <span class="password-status" id="password-status">○ Inactive</span>
+            </div>
+          </div>
+
+        </div><!-- /left -->
+
+        <!-- RIGHT -->
+        <div class="settings-col">
+
+          <div class="settings-card">
+            <div class="settings-card-label">Effects</div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Click Ripple</span><span class="setting-desc">Wave on click</span></div>
+              <label class="toggle"><input type="checkbox" id="ripple-toggle" checked /><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Animations</span><span class="setting-desc">Tile transitions</span></div>
+              <label class="toggle"><input type="checkbox" id="animations-toggle" checked /><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+            </div>
+            <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px;border-bottom:none;padding-bottom:0">
+              <div class="setting-info"><span class="setting-name">Background Reactivity</span><span class="setting-desc">Canvas particle intensity</span></div>
+              <div class="slider-wrap">
+                <span class="slider-label">Off</span>
+                <input type="range" class="setting-range full-range" id="reactivity-slider" min="0" max="100" value="60" />
+                <span class="slider-label">Max</span>
+                <span class="slider-value" id="reactivity-value">60</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-card-label">Personalization</div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Tab Title</span><span class="setting-desc">Browser tab name</span></div>
+              <input type="text" class="setting-input" id="tab-title-input" value="Home" placeholder="Tab title" />
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><span class="setting-name">Favicon URL</span><span class="setting-desc">Custom tab icon</span></div>
+              <input type="text" class="setting-input" id="favicon-input" value="https://ssl.gstatic.com/classroom/favicon.png" placeholder="https://…" />
+            </div>
+          </div>
+
+          <!-- STEALTH / HACKWIZE -->
+          <div class="settings-card">
+            <div class="settings-card-label">Stealth — Hackwize</div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-name">Redirect URL</span>
+                <span class="setting-desc">Where <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:1px 6px;font-size:0.75rem">0</kbd> sends the original tab</span>
+              </div>
+              <input type="text" class="setting-input" id="redirect-url" value="https://classroom.google.com" placeholder="https://…" />
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-name">No History</span>
+                <span class="setting-desc">Open Jplay in about:blank (requires pop-ups)</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="no-history-toggle" checked /><span class="toggle-track"><span class="toggle-thumb"></span></span></label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-name">0 Key Mimic Site</span>
+                <span class="setting-desc">Fake site shown while hidden</span>
+              </div>
+              <select class="setting-select" id="mimic-site-select">
+                <option value="google_classroom" selected>Google Classroom</option>
+                <option value="custom">Custom URL</option>
+              </select>
+            </div>
+
+            <div class="setting-row" id="mimic-custom-row" style="display:none">
+              <div class="setting-info">
+                <span class="setting-name">Custom Mimic URL</span>
+                <span class="setting-desc">Used when Mimic Site is set to Custom URL</span>
+              </div>
+              <input type="text" class="setting-input" id="mimic-custom-url" value="" placeholder="https://example.com" />
+            </div>
+
+            <!-- Mimic username -->
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-name">Mimic Username</span>
+                <span class="setting-desc">Your name shown in the fake Classroom site</span>
+              </div>
+              <input type="text" class="setting-input" id="mimic-user-input" placeholder="e.g. Alex Johnson" />
+            </div>
+
+            <!-- Mimic avatar color -->
+            <div class="setting-row" style="border-bottom:none;padding-bottom:4px;">
+              <div class="setting-info">
+                <span class="setting-name">Mimic Avatar Color</span>
+                <span class="setting-desc">Profile color shown in the fake site</span>
+              </div>
+              <div class="mimic-color-wrap">
+                <!-- Clickable color swatch -->
+                <div class="mimic-color-swatch" id="mimic-color-preview" title="Pick color"></div>
+                <!-- Hidden native color picker -->
+                <input type="color" id="mimic-color-native" value="#1a73e8" />
+                <!-- Hex text input -->
+                <input type="text" class="setting-input mimic-color-hex" id="mimic-color-input" value="#1a73e8" placeholder="#1a73e8" maxlength="7" />
+              </div>
+            </div>
+
+            <!-- Quick presets -->
+            <div class="setting-row" style="border-bottom:none;padding-bottom:0;flex-wrap:wrap;gap:8px">
+              <div class="setting-info"><span class="setting-name">Quick Presets</span><span class="setting-desc">Cloak title, icon &amp; redirect at once</span></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:6px">
+                <button class="upload-browse-btn" onclick="hwPreset('Google Classroom','https://ssl.gstatic.com/classroom/favicon.png','https://classroom.google.com')">Classroom</button>
+                <button class="upload-browse-btn" onclick="hwPreset('Google','https://www.google.com/favicon.ico','https://www.google.com')">Google</button>
+                <button class="upload-browse-btn" onclick="hwPreset('Canvas','https://du11hjcvx0uqb.cloudfront.net/dist/images/favicon-e10d657a73.ico','https://canvas.instructure.com')">Canvas</button>
+                <button class="upload-browse-btn" onclick="hwPreset('Khan Academy','https://www.khanacademy.org/favicon.ico','https://www.khanacademy.org')">Khan</button>
+              </div>
+            </div>
+
+            <div style="padding-top:12px;margin-top:6px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.72rem;color:#4a5568">
+              Press <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:1px 6px">0</kbd> to hide Jplay — shows mimic site and opens redirect. Press <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:4px;padding:1px 6px">0</kbd> again to close the redirect tab and return to Jplay.
+            </div>
+          </div>
+
+          <div class="settings-reset-row">
+            <button class="reset-btn" id="reset-settings-btn">Reset All to Defaults</button>
+          </div>
+
+        </div><!-- /right -->
+
+      </div><!-- /settings-columns -->
+    </main><!-- /page-settings -->
+
+  </div><!-- /pages-wrap -->
+</div><!-- /app-shell -->
+
+<!-- DETAIL PANEL -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-panel">
+    <div class="detail-bg" id="detail-bg"></div>
+    <div class="detail-bg-overlay"></div>
+    <button class="detail-close" id="detail-close-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="detail-content">
+      <img class="detail-icon" id="detail-icon" src="" alt="" style="display:none" />
+      <div class="detail-meta">
+        <span class="detail-category" id="detail-category"></span>
+        <h2 class="detail-title" id="detail-title"></h2>
+        <p class="detail-desc" id="detail-desc"></p>
+        <button class="detail-play-btn" id="detail-play-btn">
+          <svg viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg>Play Now
         </button>
       </div>
-      <div id="open-games-list"></div>
     </div>
-  </div>
-
-  <!-- BOTTOM BAR -->
-  <div id="bottombar">
-    <button class="bar-btn active" id="home-btn" aria-label="Home">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
-        <polyline points="9,21 9,13 15,13 15,21"/>
-      </svg>
-      Home
-    </button>
-    <button class="bar-btn" id="open-games-btn" aria-label="Open Games">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
-        <rect x="2" y="3" width="20" height="14" rx="0"/><polyline points="8,21 12,17 16,21"/><line x1="12" y1="17" x2="12" y2="21"/>
-      </svg>
-      Open Games
-      <span id="open-games-count"></span>
-    </button>
   </div>
 </div>
 
-<!-- GAME WINDOWS LAYER -->
-<div id="game-windows"></div>
+<!-- GAME MODAL -->
+<div class="modal-overlay" id="game-modal">
+  <div class="modal-inner">
+    <div class="modal-topbar">
+      <div class="modal-game-info">
+        <span class="modal-game-title" id="modal-title"></span>
+        <span class="modal-game-category" id="modal-category"></span>
+      </div>
+      <div class="modal-controls">
+        <button class="modal-btn" id="modal-fullscreen-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+        <button class="modal-btn close-btn" id="modal-close-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="modal-frame-wrap">
+      <div class="modal-loader" id="modal-loader">
+        <div class="loader-ring"></div><span>Loading game…</span>
+      </div>
+      <iframe id="game-frame" src="" allowfullscreen></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- hackwize BEFORE script -->
+<script src="assets/js/apis/hackwize.js?v=20260412"></script>
+<script src="assets/js/script.js?v=20260412"></script>
 
 <script>
-// ===================== DATA =====================
-const DATA_URL = 'https://jxoj.github.io/Jplay/data.json';
+/* ── hwPreset ────────────────────────────────────────────────────────────── */
+function hwPreset(title, favicon, redirect) {
+  var ti = document.getElementById('tab-title-input');
+  var fi = document.getElementById('favicon-input');
+  var ri = document.getElementById('redirect-url');
+  if (ti) ti.value = title;
+  if (fi) fi.value = favicon;
+  if (ri) ri.value = redirect;
+  if (typeof Hackwize !== 'undefined') {
+    Hackwize.setCloak(title, favicon);
+    if (typeof Hackwize.setRedirectUrl === 'function') Hackwize.setRedirectUrl(redirect);
+  }
+}
 
-let DATA = { authors: [] };
-let ALL_GAMES = [];
-
-function buildGameIndex() {
-  ALL_GAMES = [];
-  DATA.authors.forEach(author => {
-    // Auto-generate initials if not provided
-    if (!author.initials) {
-      author.initials = author.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase();
-    }
-    author.games.forEach(game => {
-      ALL_GAMES.push({ ...game, authorId: author.id, authorName: author.name });
+/* ── Mimic username save ─────────────────────────────────────────────────── */
+(function () {
+  var userInput = document.getElementById('mimic-user-input');
+  if (userInput) {
+    userInput.addEventListener('change', function () {
+      if (typeof Hackwize !== 'undefined') Hackwize.setMimicUser(userInput.value);
     });
-  });
-}
-
-function showLoadingState() {
-  document.getElementById('empty-state').innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square">
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
-        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-      </path>
-    </svg>
-    <h2>Loading games...</h2>
-    <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);opacity:0.5;">${DATA_URL}</p>
-  `;
-}
-
-function showErrorState(msg) {
-  document.getElementById('empty-state').innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-linecap="square">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="var(--red)"/>
-    </svg>
-    <h2 style="color:var(--red);">Failed to load</h2>
-    <p style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);">${msg}</p>
-    <button onclick="loadData()" style="margin-top:8px;background:none;border:1px solid var(--border);color:var(--green-dim);font-family:var(--font-mono);font-size:0.75rem;padding:6px 14px;cursor:pointer;letter-spacing:0.08em;transition:border-color 0.15s;" onmouseover="this.style.borderColor='var(--green-dim)'" onmouseout="this.style.borderColor='var(--border)'">Retry</button>
-  `;
-}
-
-async function loadData() {
-  showLoadingState();
-  try {
-    const res = await fetch(DATA_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
-    DATA = await res.json();
-    if (!DATA.authors || !Array.isArray(DATA.authors)) throw new Error('Invalid JSON structure: missing authors array');
-    buildGameIndex();
-    renderSidebar();
-    renderLastPlayed();
-  } catch (err) {
-    showErrorState(err.message);
-  }
-}
-
-// ===================== STATE =====================
-const state = {
-  openGames: [],      // array of game ids currently "running"
-  lastPlayed: [],     // ordered array of game ids
-  sidebarOpen: false,
-  openGamesPanel: false,
-  searchQuery: ''
-};
-
-function getGame(id) { return ALL_GAMES.find(g => g.id === id); }
-
-// ===================== SVG ICONS =====================
-const ICONS = {
-  gamepad: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="2" y="6" width="20" height="12" rx="0"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>`,
-  chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" width="12" height="12"><polyline points="9,18 15,12 9,6"/></svg>`,
-  play: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><polygon points="5,3 19,12 5,21 5,3"/></svg>`,
-  close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-  user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a6 6 0 0112 0v2"/></svg>`
-};
-
-// Fallback SVG when no image is provided
-const FALLBACK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"><rect x="2" y="6" width="20" height="12" rx="0"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>`;
-
-function thumbHTML(game) {
-  if (game.image) {
-    return `<img src="${game.image}" alt="${game.title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'thumb-fallback\\'>${FALLBACK_ICON.replace(/"/g,"'")}</div>'" />`;
-  }
-  return `<div class="thumb-fallback">${FALLBACK_ICON}</div>`;
-}
-
-// ===================== RENDER =====================
-
-function renderGameCard(game, extraClass = '') {
-  const isRunning = state.openGames.includes(game.id);
-  const card = document.createElement('div');
-  card.className = 'game-card' + (extraClass ? ' ' + extraClass : '');
-  card.dataset.gameId = game.id;
-  card.innerHTML = `
-    <div class="game-card-thumb">
-      ${thumbHTML(game)}
-    </div>
-    <div class="game-card-info">
-      <div class="game-card-title">${game.title}</div>
-      <div class="game-card-author">by ${game.authorName}</div>
-    </div>
-    ${isRunning ? '<div class="game-card-running"></div>' : ''}
-  `;
-  card.addEventListener('click', () => launchGame(game.id));
-  return card;
-}
-
-function renderAllGames() {
-  const grid = document.getElementById('all-games-grid');
-  grid.innerHTML = '';
-  ALL_GAMES.forEach(game => grid.appendChild(renderGameCard(game)));
-}
-
-function renderLastPlayed() {
-  const section = document.getElementById('last-played-section');
-  const emptyState = document.getElementById('empty-state');
-  const grid = document.getElementById('last-played-grid');
-
-  if (state.lastPlayed.length === 0) {
-    section.style.display = 'none';
-    emptyState.style.display = 'flex';
-    return;
-  }
-  section.style.display = 'block';
-  emptyState.style.display = 'none';
-  grid.innerHTML = '';
-  state.lastPlayed.slice(0, 8).forEach(id => {
-    const game = getGame(id);
-    if (game) grid.appendChild(renderGameCard(game));
-  });
-  renderAllGames();
-}
-
-function renderSidebar() {
-  const list = document.getElementById('authors-list');
-  list.innerHTML = '';
-  DATA.authors.forEach(author => {
-    const item = document.createElement('div');
-    item.className = 'author-item';
-    const avatarHTML = author.avatar
-      ? `<img src="${author.avatar}" alt="${author.name}" style="width:30px;height:30px;object-fit:cover;border:1px solid var(--border);" onerror="this.outerHTML='<div class=\\'author-avatar\\'>${author.initials}</div>'" />`
-      : `<div class="author-avatar">${author.initials}</div>`;
-    item.innerHTML = `
-      <div class="author-header">
-        ${avatarHTML}
-        <div class="author-name"><span>Made by</span> ${author.name}</div>
-        <span class="author-chevron">${ICONS.chevron}</span>
-      </div>
-      <div class="author-games"></div>
-    `;
-    const header = item.querySelector('.author-header');
-    const gamesDiv = item.querySelector('.author-games');
-
-    author.games.forEach(game => {
-      const fullGame = { ...game, authorId: author.id, authorName: author.name };
-      const row = document.createElement('div');
-      row.className = 'sidebar-game';
-      const miniThumb = game.image
-        ? `<img src="${game.image}" alt="${game.title}" style="width:20px;height:20px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);filter:brightness(0.85);" onerror="this.outerHTML='${ICONS.play.replace(/"/g,"'")}'" />`
-        : ICONS.play;
-      row.innerHTML = `${miniThumb}<span>${game.title}</span>`;
-      row.addEventListener('click', e => {
-        e.stopPropagation();
-        launchGame(game.id);
-        closeSidebar();
-      });
-      gamesDiv.appendChild(row);
+    userInput.addEventListener('blur', function () {
+      if (typeof Hackwize !== 'undefined') Hackwize.setMimicUser(userInput.value);
     });
+  }
+})();
 
-    header.addEventListener('click', () => {
-      item.classList.toggle('expanded');
+/* ── Mimic color picker ──────────────────────────────────────────────────── */
+(function () {
+  var swatch  = document.getElementById('mimic-color-preview');
+  var native  = document.getElementById('mimic-color-native');
+  var hexIn   = document.getElementById('mimic-color-input');
+
+  function applyColor(hex) {
+    if (!hex) return;
+    /* Ensure # prefix */
+    if (hex.charAt(0) !== '#') hex = '#' + hex;
+    if (swatch)  swatch.style.background = hex;
+    if (hexIn)   hexIn.value = hex;
+    if (native)  native.value = hex;
+    if (typeof Hackwize !== 'undefined') Hackwize.setMimicColor(hex);
+  }
+
+  /* Clicking swatch opens native color picker */
+  if (swatch && native) {
+    swatch.addEventListener('click', function () { native.click(); });
+  }
+
+  /* Native picker changes */
+  if (native) {
+    native.addEventListener('input', function () { applyColor(native.value); });
+    native.addEventListener('change', function () { applyColor(native.value); });
+  }
+
+  /* Hex text field changes */
+  if (hexIn) {
+    hexIn.addEventListener('input', function () {
+      var v = hexIn.value.trim();
+      if (/^#?[0-9a-fA-F]{6}$/.test(v)) applyColor(v);
     });
-    list.appendChild(item);
-  });
-}
-
-function renderOpenGamesPanel() {
-  const listEl = document.getElementById('open-games-list');
-  listEl.innerHTML = '';
-  if (state.openGames.length === 0) {
-    listEl.innerHTML = '<div class="panel-empty">No games currently running.</div>';
-    return;
-  }
-  state.openGames.forEach(id => {
-    const game = getGame(id);
-    if (!game) return;
-    const row = document.createElement('div');
-    row.className = 'open-game-row';
-    row.innerHTML = `
-      <div class="open-game-dot"></div>
-      <div>
-        <div class="open-game-name">${game.title}</div>
-        <div class="open-game-author">by ${game.authorName}</div>
-      </div>
-      <div style="flex:1"></div>
-      <button class="close-game-btn" data-id="${id}" aria-label="Close">
-        ${ICONS.close}
-      </button>
-    `;
-    row.querySelector('.close-game-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      closeGame(id);
-    });
-    // Click row to focus window
-    row.addEventListener('click', () => {
-      focusGameWindow(id);
-      toggleOpenGamesPanel(false);
-    });
-    listEl.appendChild(row);
-  });
-}
-
-function updateOpenGamesCount() {
-  const count = document.getElementById('open-games-count');
-  const btn = document.getElementById('open-games-btn');
-  if (state.openGames.length > 0) {
-    count.textContent = state.openGames.length;
-    count.classList.add('visible');
-    btn.classList.add('active');
-  } else {
-    count.classList.remove('visible');
-    btn.classList.remove('active');
-  }
-}
-
-function renderSearch(query) {
-  const resultsView = document.getElementById('search-results');
-  const homeView = document.getElementById('home-view');
-  const grid = document.getElementById('search-results-grid');
-  const noResults = document.getElementById('search-no-results');
-  const q = query.toLowerCase().trim();
-
-  if (!q) {
-    resultsView.classList.remove('visible');
-    homeView.classList.remove('hidden');
-    return;
-  }
-
-  resultsView.classList.add('visible');
-  homeView.classList.add('hidden');
-  grid.innerHTML = '';
-
-  const matches = ALL_GAMES.filter(g =>
-    g.title.toLowerCase().includes(q) ||
-    g.authorName.toLowerCase().includes(q) ||
-    g.description.toLowerCase().includes(q)
-  );
-
-  if (matches.length === 0) {
-    noResults.style.display = 'block';
-    grid.style.display = 'none';
-  } else {
-    noResults.style.display = 'none';
-    grid.style.display = '';
-    matches.forEach(game => grid.appendChild(renderGameCard(game)));
-  }
-}
-
-// ===================== GAME WINDOW MANAGER =====================
-
-function launchGame(id) {
-  // Add to last played
-  state.lastPlayed = [id, ...state.lastPlayed.filter(i => i !== id)].slice(0, 20);
-
-  if (state.openGames.includes(id)) {
-    focusGameWindow(id);
-    return;
-  }
-  state.openGames.push(id);
-
-  const game = getGame(id);
-  const container = document.getElementById('game-windows');
-
-  const win = document.createElement('div');
-  win.className = 'game-window';
-  win.dataset.gameId = id;
-  win.innerHTML = `
-    <div class="game-window-titlebar">
-      <span style="color:var(--green-dim);display:flex;align-items:center;gap:8px;">${ICONS.play}</span>
-      <span class="game-window-title">JPLAY / ${game.authorName.toUpperCase()} / ${game.title.toUpperCase()}</span>
-      <button class="game-window-close" aria-label="Close">${ICONS.close}</button>
-    </div>
-    <div class="game-window-body">
-      ${game.url
-        ? `<iframe src="${game.url}" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`
-        : `<div class="game-window-placeholder">
-            <div class="big-icon">
-              ${game.image
-                ? `<img src="${game.image}" alt="${game.title}" style="width:80px;height:80px;object-fit:cover;border:1px solid var(--border);filter:brightness(0.7) saturate(0.8);" />`
-                : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="square" width="56" height="56"><rect x="2" y="6" width="20" height="12" rx="0"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="15" cy="11" r="1" fill="currentColor"/><circle cx="17" cy="13" r="1" fill="currentColor"/></svg>`
-              }
-            </div>
-            <strong>${game.title}</strong><br/>
-            <span style="opacity:0.5;font-size:0.75rem;">${game.description}</span><br/><br/>
-            <span style="color:var(--green-faint);">// game binary not linked</span><br/>
-            <span style="opacity:0.4;">set url in data.json to launch</span>
-          </div>`
+    hexIn.addEventListener('blur', function () {
+      var v = hexIn.value.trim();
+      if (/^#?[0-9a-fA-F]{6}$/.test(v)) applyColor(v);
+      else {
+        /* Reset to last valid */
+        var last = (typeof Hackwize !== 'undefined' && Hackwize.getSettings().mimicColor) || '#1a73e8';
+        applyColor(last);
       }
-    </div>
-  `;
-  win.querySelector('.game-window-close').addEventListener('click', () => closeGame(id));
-  container.appendChild(win);
-
-  updateOpenGamesCount();
-  renderOpenGamesPanel();
-  renderLastPlayed();
-}
-
-function closeGame(id) {
-  state.openGames = state.openGames.filter(i => i !== id);
-  const win = document.querySelector(`.game-window[data-game-id="${id}"]`);
-  if (win) {
-    win.style.transition = 'opacity 0.15s';
-    win.style.opacity = '0';
-    setTimeout(() => win.remove(), 150);
+    });
   }
-  updateOpenGamesCount();
-  renderOpenGamesPanel();
-  renderLastPlayed();
-  if (state.openGames.length === 0) toggleOpenGamesPanel(false);
-}
 
-function focusGameWindow(id) {
-  const windows = document.querySelectorAll('.game-window');
-  windows.forEach(w => w.style.zIndex = '300');
-  const win = document.querySelector(`.game-window[data-game-id="${id}"]`);
-  if (win) win.style.zIndex = '301';
-}
+  /* Init swatch color from stored value on load */
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof Hackwize !== 'undefined') {
+      var saved = Hackwize.getSettings().mimicColor || '#1a73e8';
+      applyColor(saved);
+    }
+  });
+})();
 
-// ===================== SIDEBAR =====================
-function openSidebar() {
-  state.sidebarOpen = true;
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-overlay').classList.add('visible');
-}
-function closeSidebar() {
-  state.sidebarOpen = false;
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('visible');
-}
-
-// ===================== OPEN GAMES PANEL =====================
-function toggleOpenGamesPanel(force) {
-  const panel = document.getElementById('open-games-panel');
-  const btn = document.getElementById('open-games-btn');
-  state.openGamesPanel = force !== undefined ? force : !state.openGamesPanel;
-  if (state.openGamesPanel) {
-    renderOpenGamesPanel();
-    panel.classList.add('visible');
-    btn.classList.add('active');
-  } else {
-    panel.classList.remove('visible');
-    if (state.openGames.length === 0) btn.classList.remove('active');
+/* ── jplayForceSettingsFallback ─────────────────────────────────────────── */
+function jplayForceSettingsFallback() {
+  if (typeof window.JplayOpenSettings === 'function') {
+    window.JplayOpenSettings();
+    return;
   }
-}
 
-// ===================== EVENT LISTENERS =====================
-document.getElementById('menu-btn').addEventListener('click', () => {
-  if (state.sidebarOpen) closeSidebar(); else openSidebar();
-});
-document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
-document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
-
-document.getElementById('home-btn').addEventListener('click', () => {
-  document.getElementById('search-input').value = '';
-  document.getElementById('search-clear').classList.remove('visible');
-  renderSearch('');
-});
-
-document.getElementById('open-games-btn').addEventListener('click', () => {
-  toggleOpenGamesPanel();
-});
-document.getElementById('panel-close-btn').addEventListener('click', () => {
-  toggleOpenGamesPanel(false);
-});
-
-// Search
-const searchInput = document.getElementById('search-input');
-const searchClear = document.getElementById('search-clear');
-
-searchInput.addEventListener('input', e => {
-  const q = e.target.value;
-  searchClear.classList.toggle('visible', q.length > 0);
-  renderSearch(q);
-});
-
-searchClear.addEventListener('click', () => {
-  searchInput.value = '';
-  searchClear.classList.remove('visible');
-  renderSearch('');
-  searchInput.focus();
-});
-
-// Close panel on outside click
-document.addEventListener('click', e => {
-  const panel = document.getElementById('open-games-panel');
-  const btn = document.getElementById('open-games-btn');
-  if (state.openGamesPanel && !panel.contains(e.target) && !btn.contains(e.target)) {
-    toggleOpenGamesPanel(false);
+  var pages = ['home', 'library', 'settings'];
+  for (var i = 0; i < pages.length; i++) {
+    var pageEl = document.getElementById('page-' + pages[i]);
+    if (!pageEl) continue;
+    if (pages[i] === 'settings') pageEl.style.setProperty('display', 'flex', 'important');
+    else pageEl.style.setProperty('display', 'none', 'important');
   }
-});
 
-// ===================== INIT =====================
-loadData();
+  var btns = document.querySelectorAll('.sidebar-item[data-page]');
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].classList.toggle('active', btns[j].getAttribute('data-page') === 'settings');
+  }
+
+  var lbl = document.getElementById('topbar-page-title');
+  if (lbl) lbl.textContent = 'Settings';
+
+  var wrap = document.querySelector('.pages-wrap');
+  if (wrap) wrap.scrollTop = 0;
+
+  var searchArea = document.getElementById('topbar-search-area');
+  if (searchArea) searchArea.style.visibility = 'hidden';
+
+  var sortBtn = document.getElementById('sort-btn');
+  if (sortBtn) sortBtn.style.display = 'none';
+
+  var sortMenu = document.getElementById('sort-menu');
+  if (sortMenu) sortMenu.style.display = 'none';
+
+  var randomBtn = document.getElementById('random-btn');
+  if (randomBtn) randomBtn.style.display = 'none';
+}
 </script>
+
 </body>
 </html>
