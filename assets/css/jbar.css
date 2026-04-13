@@ -53,14 +53,11 @@
   display: block;
   animation: overlayFadeIn 0.38s ease forwards;
 }
-/* Peek mode: Alt+J pressed with no game open — show overlay transparently just enough for the bar */
+/* Peek mode removed — jbar now lives on body directly */
 #jplay-fullscreen-overlay.jbar-peek {
   display: block;
   background: transparent;
   pointer-events: none;
-}
-#jplay-fullscreen-overlay.jbar-peek #jbar {
-  pointer-events: all;
 }
 #jplay-game-container {
   position: absolute;
@@ -82,7 +79,7 @@
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%) translateY(120px) scale(0.88);
-  z-index: 900;
+  z-index: 9900; /* above overlay (800), switcher (9800), everything */
   display: flex;
   align-items: center;
   gap: 16px;

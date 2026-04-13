@@ -18,6 +18,31 @@ var JBar = (function () {
   var bgMuted        = false;
   var clockInterval  = null;
 
+  /* Inject an Alt+J → postMessage forwarder into an iframe (same-origin only;
+     cross-origin iframes are handled by the window.blur re-inject + postMessage listener) */
+  function injectAltJIntoIframe(iframe) {
+    var script = [
+      '(function(){',
+      '  if(window.__jplay_altj_injected__) return;',
+      '  window.__jplay_altj_injected__ = true;',
+      '  document.addEventListener("keydown", function(e){',
+      '    if(e.altKey && (e.key==="j"||e.key==="J")){',
+      '      e.preventDefault();',
+      '      try{ window.top.postMessage({type:"__jplay_altj__"},"*"); }catch(ex){}',
+      '    }',
+      '  }, true);',
+      '})();'
+    ].join('');
+    try {
+      var doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (doc && doc.body) {
+        var s = doc.createElement('script');
+        s.textContent = script;
+        doc.body.appendChild(s);
+      }
+    } catch(ex) { /* cross-origin: silently skip, postMessage path covers this */ }
+  }
+
   /* ── Storage helpers ── */
   var STORE = {
     get: function(k)    { try { return JSON.parse(localStorage.getItem('__jplay_'+k+'__')); } catch(e) { return null; } },
@@ -152,6 +177,12 @@ var JBar = (function () {
 
     var sess = { id: id, game: game, iframe: iframe, canvas: canvas, vol: 1.0, navHistory: [] };
     sessions.push(sess);
+
+    /* Inject Alt+J forwarder into this iframe once it loads */
+    iframe.addEventListener('load', function () {
+      injectAltJIntoIframe(iframe);
+    });
+
     switchTo(id);
   }
 
@@ -226,28 +257,19 @@ var JBar = (function () {
   ══════════════════════════════════════════════ */
   function showJbar() {
     jbarVisible = true;
-    /* Also ensure the overlay is visible so the bar isn't hidden by its parent */
-    var overlay = document.getElementById('jplay-fullscreen-overlay');
-    if (overlay && !overlay.classList.contains('active')) {
-      overlay.classList.add('jbar-peek');
-    }
     var bar = document.getElementById('jbar');
     if (bar) bar.classList.add('visible');
     resetJbarHideTimer();
   }
 
   function hideJbar() {
-    jbarVisible = false; /* mark hidden immediately so toggle logic is correct */
+    jbarVisible = false;
     var bar = document.getElementById('jbar');
     if (bar) {
       bar.classList.add('hiding');
       setTimeout(function () {
         bar.classList.remove('visible');
         bar.classList.remove('hiding');
-        var overlay = document.getElementById('jplay-fullscreen-overlay');
-        if (overlay && !overlay.classList.contains('active')) {
-          overlay.classList.remove('jbar-peek');
-        }
         closeJbarPanels();
       }, 300);
     } else {
@@ -537,8 +559,10 @@ var JBar = (function () {
 
     ].join('');
 
-    overlay.appendChild(bar);
     document.body.appendChild(overlay);
+
+    /* ── JBar — appended directly to body so it's never clipped by the overlay stacking context ── */
+    document.body.appendChild(bar);
 
     /* ── Switcher panel — appended directly to body so position:fixed covers the full viewport ── */
     var switcherPanel = document.createElement('div');
@@ -562,12 +586,28 @@ var JBar = (function () {
   }
 
   function wireEvents() {
-    /* Alt+J toggle */
+    /* Alt+J toggle — on the main document */
     document.addEventListener('keydown', function (e) {
       if (e.altKey && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
         if (jbarVisible) hideJbar(); else showJbar();
       }
+    });
+
+    /* Alt+J forwarded from inside iframes via postMessage */
+    window.addEventListener('message', function (e) {
+      if (e.data && e.data.type === '__jplay_altj__') {
+        if (jbarVisible) hideJbar(); else showJbar();
+      }
+    });
+
+    /* On window blur the iframe stole focus — re-inject into all active iframes */
+    window.addEventListener('blur', function () {
+      setTimeout(function () {
+        for (var i = 0; i < sessions.length; i++) {
+          injectAltJIntoIframe(sessions[i].iframe);
+        }
+      }, 200);
     });
 
     /* Mouse move near bottom shows bar when game is active */
