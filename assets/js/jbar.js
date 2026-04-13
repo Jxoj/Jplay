@@ -18,8 +18,9 @@ var JBar = (function () {
   var bgMuted        = false;
   var clockInterval  = null;
 
-  /* Inject an Alt+J → postMessage forwarder into an iframe (same-origin only;
-     cross-origin iframes are handled by the window.blur re-inject + postMessage listener) */
+  /* Inject an Alt+J + mousemove-near-bottom → postMessage forwarder into an iframe
+     (same-origin only; cross-origin iframes are handled by the window.blur re-inject +
+     postMessage listener and the sentinel-strip approach below) */
   function injectAltJIntoIframe(iframe) {
     var script = [
       '(function(){',
@@ -31,6 +32,12 @@ var JBar = (function () {
       '      try{ window.top.postMessage({type:"__jplay_altj__"},"*"); }catch(ex){}',
       '    }',
       '  }, true);',
+      '  /* Forward mouse-near-bottom so JBar can appear even when iframe has focus */',
+      '  document.addEventListener("mousemove", function(e){',
+      '    if(e.clientY > window.innerHeight - 80){',
+      '      try{ window.top.postMessage({type:"__jplay_mousebottom__"},"*"); }catch(ex){}',
+      '    }',
+      '  });',
       '})();'
     ].join('');
     try {
@@ -506,6 +513,28 @@ var JBar = (function () {
     container.id = 'jplay-game-container';
     overlay.appendChild(container);
 
+    /* ── Sentinel strip: thin bar at bottom that sits above the iframe so
+       native mousemove events reach the parent document even for cross-origin
+       iframes where script injection is blocked ── */
+    var sentinel = document.createElement('div');
+    sentinel.id = 'jplay-jbar-sentinel';
+    sentinel.style.cssText = [
+      'position:absolute',
+      'bottom:0',
+      'left:0',
+      'right:0',
+      'height:60px',
+      'z-index:10',
+      'pointer-events:all',
+      'background:transparent',
+      'cursor:default',
+    ].join(';');
+    sentinel.addEventListener('mousemove', function () {
+      var ov = document.getElementById('jplay-fullscreen-overlay');
+      if (ov && ov.classList.contains('active')) showJbar();
+    });
+    overlay.appendChild(sentinel);
+
     /* ── JBAR ── */
     var bar = document.createElement('div');
     bar.id = 'jbar';
@@ -598,6 +627,13 @@ var JBar = (function () {
     window.addEventListener('message', function (e) {
       if (e.data && e.data.type === '__jplay_altj__') {
         if (jbarVisible) hideJbar(); else showJbar();
+      }
+      /* Mouse-near-bottom forwarded from inside cross-origin iframes */
+      if (e.data && e.data.type === '__jplay_mousebottom__') {
+        var overlay = document.getElementById('jplay-fullscreen-overlay');
+        if (overlay && overlay.classList.contains('active')) {
+          showJbar();
+        }
       }
     });
 

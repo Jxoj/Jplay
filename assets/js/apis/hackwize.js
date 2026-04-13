@@ -156,7 +156,11 @@ const Hackwize = (function () {
   }
 
   function _openNoHistoryWindow() {
-    if (sessionStorage.getItem(SESSION_KEY) === '1') return;
+    /* Guard only applies inside the shell window (hwblank=1) to prevent
+       the iframe from trying to spawn another shell on init. On a fresh
+       top-level page load we always want to (re-)open the shell. */
+    if (_isNoHistoryContext() && sessionStorage.getItem(SESSION_KEY) === '1') return;
+    if (!_isNoHistoryContext()) sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.setItem(SESSION_KEY, '1');
 
     try {
