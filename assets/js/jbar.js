@@ -10,6 +10,7 @@ var JBar = (function () {
   var activeSession  = null;
   var jbarVisible    = false;
   var jbarTimeout    = null;
+  var jbarAltJMode   = false; /* true when opened explicitly via Alt+J */
   var bgAudio        = null;
   var bgVol          = 0.4;
   var bgMuted        = false;
@@ -337,7 +338,7 @@ var JBar = (function () {
     keyInterceptEl.addEventListener('keydown', function (e) {
       if (e.altKey && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault(); e.stopPropagation();
-        if (jbarVisible) hideJbar(); else showJbar();
+        if (jbarVisible) hideJbar(); else showJbar('altj');
       }
     }, true);
     document.body.appendChild(keyInterceptEl);
@@ -371,15 +372,27 @@ var JBar = (function () {
   }
 
   /* ══ JBAR UI ══ */
-  function showJbar() {
+  /* intent: 'altj'  = explicit Alt+J toggle — never auto-hides
+             'mouse' = mouse-at-bottom trigger — auto-hides after 4 s
+             (omitted) = default, auto-hides                          */
+  function showJbar(intent) {
     jbarVisible = true;
+    jbarAltJMode = (intent === 'altj');
     var bar = document.getElementById('jbar');
     if (bar) bar.classList.add('visible');
-    resetJbarHideTimer();
+    if (intent === 'altj') {
+      clearTimeout(jbarTimeout);
+      jbarTimeout = null;
+    } else {
+      resetJbarHideTimer();
+    }
   }
 
   function hideJbar() {
     jbarVisible = false;
+    jbarAltJMode = false;
+    clearTimeout(jbarTimeout);
+    jbarTimeout = null;
     var bar = document.getElementById('jbar');
     if (bar) {
       bar.classList.add('hiding');
@@ -613,7 +626,7 @@ var JBar = (function () {
     sentinel.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:60px;z-index:10;pointer-events:all;background:transparent;cursor:default';
     sentinel.addEventListener('mousemove', function () {
       var ov = document.getElementById('jplay-fullscreen-overlay');
-      if (ov && ov.classList.contains('active')) showJbar();
+      if (ov && ov.classList.contains('active')) showJbar('mouse');
     });
     overlay.appendChild(sentinel);
 
@@ -687,17 +700,17 @@ var JBar = (function () {
     window.addEventListener('keydown', function (e) {
       if (e.altKey && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
-        if (jbarVisible) hideJbar(); else showJbar();
+        if (jbarVisible) hideJbar(); else showJbar('altj');
       }
     }, true);
 
     window.addEventListener('message', function (e) {
       if (!e.data) return;
       if (e.data.type === '__jplay_altj__') {
-        if (jbarVisible) hideJbar(); else showJbar();
+        if (jbarVisible) hideJbar(); else showJbar('altj');
       }
       if (e.data.type === '__jplay_mousebottom__') {
-        showJbar();
+        showJbar('mouse');
       }
       if (e.data.type === '__jplay_win_closed__' && e.data.id) {
         for (var i = 0; i < sessions.length; i++) {
@@ -720,13 +733,13 @@ var JBar = (function () {
       if (!hasInline) return;
       var ov = document.getElementById('jplay-fullscreen-overlay');
       if (!ov || !ov.classList.contains('active')) return;
-      if (e.clientY > window.innerHeight - 80) showJbar();
+      if (e.clientY > window.innerHeight - 80) showJbar('mouse');
     });
 
     var bar = document.getElementById('jbar');
     if (bar) {
       bar.addEventListener('mouseenter', function () { clearTimeout(jbarTimeout); });
-      bar.addEventListener('mouseleave', function () { if (sessions.length > 0) resetJbarHideTimer(); });
+      bar.addEventListener('mouseleave', function () { if (sessions.length > 0 && !jbarAltJMode) resetJbarHideTimer(); });
     }
 
     var backBtn = document.getElementById('jbar-back-btn');
