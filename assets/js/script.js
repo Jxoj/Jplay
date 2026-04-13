@@ -541,6 +541,16 @@ document.addEventListener('DOMContentLoaded', function() {
   var thSel=el('theme-select');       if(thSel)  thSel.addEventListener('change',  function(e){ document.body.dataset.theme   = e.target.value; });
   var denSel=el('density-select');    if(denSel) denSel.addEventListener('change', function(e){ document.body.dataset.density = e.target.value; });
   var ripTog=el('ripple-toggle');     if(ripTog) ripTog.addEventListener('change', function(e){ state.rippleEnabled = e.target.checked; });
+
+  /* New-tab mode toggle */
+  var ntTog = el('newtab-mode-toggle');
+  if (ntTog) {
+    /* Sync initial state from JBar */
+    if (typeof JBar !== 'undefined') ntTog.checked = JBar.getNewTabMode();
+    ntTog.addEventListener('change', function(e) {
+      if (typeof JBar !== 'undefined') JBar.setNewTabMode(e.target.checked);
+    });
+  }
   var animTog=el('animations-toggle');
   if (animTog) animTog.addEventListener('change', function(e){
     state.animationsEnabled=e.target.checked;
@@ -628,6 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var bv=el('bg-blur-value');   if(bv)bv.textContent='0px';
     var rt=el('ripple-toggle');   if(rt)rt.checked=true;
     var at=el('animations-toggle');if(at)at.checked=true;
+    var nt=el('newtab-mode-toggle');if(nt){nt.checked=true;if(typeof JBar!=='undefined')JBar.setNewTabMode(true);}
     var nh=el('no-history-toggle'); if(nh) nh.checked=true;
     var upz=el('bg-upload-zone');  if(upz)upz.style.display='none';
     var wpz=el('wallpaper-picker-zone');if(wpz)wpz.style.display='none';
