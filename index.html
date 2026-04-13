@@ -41,6 +41,62 @@
       width: 0;
       height: 0;
     }
+
+    /* ── Lock-screen password mode ──────────────────── */
+    #lock-screen-password-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+    #lock-screen-password-wrap.visible { display: flex; }
+    #lock-password-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
+    }
+    #lock-password-input:focus { border-color: rgba(99,179,237,0.7); }
+    #lock-password-submit {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: #1e40af;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #lock-password-submit:hover { background: #1d4ed8; }
+    #lock-mode-toggle {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: inherit;
+      margin-top: 4px;
+    }
+    #lock-mode-toggle:hover { color: rgba(255,255,255,0.85); }
+    #lock-error-msg {
+      color: #fc8181;
+      font-size: 0.8rem;
+      min-height: 1.1em;
+      text-align: center;
+    }
   </style>
 </head>
 <body data-theme="dark" data-density="normal">
@@ -530,6 +586,137 @@ function jplayForceSettingsFallback() {
   var randomBtn = document.getElementById('random-btn');
   if (randomBtn) randomBtn.style.display = 'none';
 }
+</script>
+
+<script>
+/* ── Lock-screen password mode injector ─────────────────────────────────── *
+ *  JplaySecurity renders its own PIN UI.  Once the DOM settles we inject    *
+ *  a "Use password instead" toggle so users can type a full password.       *
+ *  Works alongside the existing JplaySecurity flow — it calls the same      *
+ *  JplaySecurity.unlock(value) method that PIN buttons do.                  *
+ * ────────────────────────────────────────────────────────────────────────── */
+(function () {
+  /* Wait until JplaySecurity (and its lock screen DOM) is ready */
+  function tryInjectPasswordMode() {
+    /* Look for the lock screen element that JplaySecurity creates.        */
+    /* Common IDs used by such scripts — adjust if yours differs.          */
+    var lockScreen = document.getElementById('lock-screen') ||
+                     document.getElementById('jplay-lock') ||
+                     document.querySelector('.lock-screen') ||
+                     document.querySelector('[id*="lock"]');
+
+    if (!lockScreen || !lockScreen.offsetParent) {
+      /* Not visible yet — retry */
+      return false;
+    }
+
+    /* Avoid double-injection */
+    if (document.getElementById('lock-screen-password-wrap')) return true;
+
+    /* ── Build password UI ── */
+    var wrap = document.createElement('div');
+    wrap.id = 'lock-screen-password-wrap';
+
+    var inp = document.createElement('input');
+    inp.id = 'lock-password-input';
+    inp.type = 'password';
+    inp.placeholder = 'Enter password…';
+    inp.autocomplete = 'current-password';
+
+    var errMsg = document.createElement('div');
+    errMsg.id = 'lock-error-msg';
+
+    var btn = document.createElement('button');
+    btn.id = 'lock-password-submit';
+    btn.textContent = 'Unlock';
+
+    var toggleBtn = document.createElement('button');
+    toggleBtn.id = 'lock-mode-toggle';
+    toggleBtn.textContent = '← Use PIN instead';
+
+    wrap.appendChild(inp);
+    wrap.appendChild(btn);
+    wrap.appendChild(errMsg);
+    wrap.appendChild(toggleBtn);
+
+    /* ── Submit logic ── */
+    function tryPasswordUnlock() {
+      var val = inp.value;
+      if (!val) { errMsg.textContent = 'Please enter your password.'; return; }
+      errMsg.textContent = '';
+
+      var unlocked = false;
+      if (typeof JplaySecurity !== 'undefined') {
+        if (typeof JplaySecurity.unlock === 'function') {
+          unlocked = JplaySecurity.unlock(val);
+        } else if (typeof JplaySecurity.checkPassword === 'function') {
+          unlocked = JplaySecurity.checkPassword(val);
+        } else if (typeof JplaySecurity.verify === 'function') {
+          unlocked = JplaySecurity.verify(val);
+        }
+      }
+
+      if (unlocked) {
+        /* Security module handled it — nothing more to do */
+      } else {
+        errMsg.textContent = 'Incorrect password. Try again.';
+        inp.value = '';
+        inp.focus();
+      }
+    }
+
+    btn.addEventListener('click', tryPasswordUnlock);
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') tryPasswordUnlock();
+    });
+
+    /* ── Toggle between PIN pad and password field ── */
+    var pinPad = lockScreen.querySelector('.pin-pad') ||
+                 lockScreen.querySelector('[class*="pin"]') ||
+                 lockScreen.querySelector('[id*="pin"]');
+
+    function showPasswordMode() {
+      wrap.classList.add('visible');
+      if (pinPad) pinPad.style.display = 'none';
+      toggleBtn.textContent = '← Use PIN instead';
+      inp.focus();
+    }
+    function showPinMode() {
+      wrap.classList.remove('visible');
+      if (pinPad) pinPad.style.display = '';
+      toggleBtn.textContent = 'Use password instead →';
+    }
+
+    /* Initially hide password wrap; show a "Use password instead" link     *
+     * near / after the PIN pad.                                             */
+    var usePassBtn = document.createElement('button');
+    usePassBtn.id = 'lock-use-password-btn';
+    usePassBtn.style.cssText = [
+      'background:none','border:none','color:rgba(255,255,255,0.45)',
+      'font-size:0.78rem','cursor:pointer','text-decoration:underline',
+      'font-family:inherit','margin-top:8px','display:block'
+    ].join(';');
+    usePassBtn.textContent = 'Use password instead →';
+    usePassBtn.addEventListener('click', showPasswordMode);
+    usePassBtn.addEventListener('mouseover', function(){ this.style.color='rgba(255,255,255,0.85)'; });
+    usePassBtn.addEventListener('mouseout',  function(){ this.style.color='rgba(255,255,255,0.45)'; });
+
+    toggleBtn.addEventListener('click', showPinMode);
+
+    /* Append both into the lock screen */
+    lockScreen.appendChild(usePassBtn);
+    lockScreen.appendChild(wrap);
+
+    return true;
+  }
+
+  /* Poll until the lock screen appears (max ~5 s) */
+  var attempts = 0;
+  var poll = setInterval(function () {
+    attempts++;
+    if (tryInjectPasswordMode() || attempts > 100) clearInterval(poll);
+  }, 50);
+})();
 </script>
 
 </body>

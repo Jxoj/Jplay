@@ -9,6 +9,11 @@
 var TEST_MODE = false;
 try { TEST_MODE = window.location.search.indexOf('test=true') !== -1; } catch(e) {}
 
+/* ── PASS RESET FLAG ────────────────────────────── */
+/* Visiting ?passreset=true bypasses / disables all JplaySecurity checks  */
+var PASS_RESET_MODE = false;
+try { PASS_RESET_MODE = window.location.search.indexOf('passreset=true') !== -1; } catch(e) {}
+
 /* ── FAKE DATA ──────────────────────────────────── */
 var FAKE_GAMES = [
   { id:1, title:'Cosmic Blaster',  category:'Action',   featured:true,  plays:9800, color:'#1a1060', description:'A fast-paced space shooter.'        },
@@ -717,10 +722,44 @@ document.addEventListener('DOMContentLoaded', function() {
   if (typeof JBar !== 'undefined') JBar.init();
 
   /* ── Security check (show lock screen if configured) ── */
-  if (typeof JplaySecurity !== 'undefined') JplaySecurity.check();
+  /* ?passreset=true skips the lock entirely and wipes stored credentials   */
+  if (PASS_RESET_MODE) {
+    /* Clear any stored PIN / password so the user can set a new one */
+    try {
+      if (typeof JplaySecurity !== 'undefined' && typeof JplaySecurity.clearCredentials === 'function') {
+        JplaySecurity.clearCredentials();
+      } else {
+        /* Fallback: nuke every localStorage key that looks security-related */
+        var keysToNuke = [];
+        for (var ki = 0; ki < localStorage.length; ki++) {
+          var lk = localStorage.key(ki);
+          if (lk && /pin|pass|lock|auth|security/i.test(lk)) keysToNuke.push(lk);
+        }
+        keysToNuke.forEach(function(k){ localStorage.removeItem(k); });
+      }
+    } catch(e) { console.warn('[Jplay] passreset cleanup error:', e); }
+
+    /* Show a brief on-screen banner so the user knows it worked */
+    (function() {
+      var banner = document.createElement('div');
+      banner.id = 'passreset-banner';
+      banner.style.cssText = [
+        'position:fixed','top:16px','left:50%','transform:translateX(-50%)',
+        'background:#1e40af','color:#fff','padding:10px 22px','border-radius:8px',
+        'font-family:inherit','font-size:0.85rem','z-index:99999',
+        'box-shadow:0 4px 20px rgba(0,0,0,0.5)','pointer-events:none'
+      ].join(';');
+      banner.textContent = '🔓 Security reset — you can now set a new PIN or password in Settings.';
+      document.body.appendChild(banner);
+      setTimeout(function(){ if(banner.parentNode) banner.parentNode.removeChild(banner); }, 5000);
+    })();
+
+  } else if (typeof JplaySecurity !== 'undefined') {
+    JplaySecurity.check();
+  }
 
   /* ── Inject Security settings panel ── */
-  if (typeof JplaySecurity !== 'undefined') {
+  if (!PASS_RESET_MODE && typeof JplaySecurity !== 'undefined') {
     var secCol = document.querySelector('.settings-col:last-child');
     if (secCol) {
       var resetRow = secCol.querySelector('.settings-reset-row');
