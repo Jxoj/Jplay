@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ── Inject Security settings panel ── */
-  if (!PASS_RESET_MODE && typeof JplaySecurity !== 'undefined') {
+  if (typeof JplaySecurity !== 'undefined') {
     var secCol = document.querySelector('.settings-col:last-child');
     if (secCol) {
       var resetRow = secCol.querySelector('.settings-reset-row');
