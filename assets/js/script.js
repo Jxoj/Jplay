@@ -482,6 +482,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   /* ── Click effects ── */
   document.addEventListener('click', function(e) {
+    /* Don't fire ripples on clicks inside JBar — it can trigger JBar's
+       outside-click dismiss handler on the same event tick               */
+    var jbarEl = document.getElementById('jbar') ||
+                 document.getElementById('jplay-bar') ||
+                 document.querySelector('.jbar');
+    if (jbarEl && jbarEl.contains(e.target)) return;
+
     if (state.rippleEnabled) spawnDOM(e.clientX, e.clientY);
     if (state.reactivity)    spawnRipple(e.clientX, e.clientY);
   });
@@ -625,10 +632,17 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   syncMimicCustomRow();
 
-  /* Password */
+  /* Password — persist to localStorage */
   var pwIn=el('global-password-input'), pwTog=el('password-toggle-btn'), pwSt=el('password-status');
-  function updPw() { if(pwSt) { if(pwIn&&pwIn.value.trim()){pwSt.textContent='● Active';pwSt.className='password-status active';}else{pwSt.textContent='○ Inactive';pwSt.className='password-status';} } }
-  if(pwIn){updPw();pwIn.addEventListener('input',updPw);}
+  function updPw() {
+    if(pwSt) { if(pwIn&&pwIn.value.trim()){pwSt.textContent='● Active';pwSt.className='password-status active';}else{pwSt.textContent='○ Inactive';pwSt.className='password-status';} }
+    try { localStorage.setItem('jplay_global_password', pwIn ? pwIn.value : ''); } catch(e){}
+  }
+  if(pwIn){
+    try { var _savedPw=localStorage.getItem('jplay_global_password'); if(_savedPw!=null) pwIn.value=_savedPw; } catch(e){}
+    updPw();
+    pwIn.addEventListener('input', updPw);
+  }
   if(pwTog&&pwIn) pwTog.addEventListener('click',function(){pwIn.type=pwIn.type==='password'?'text':'password';});
 
   /* Reset */
@@ -649,6 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var wpz=el('wallpaper-picker-zone');if(wpz)wpz.style.display='none';
     var mcr=el('mimic-custom-row'); if(mcr) mcr.style.display='none';
     updPw(); applyBackground();
+    try { localStorage.removeItem('jplay_global_password'); } catch(e){}
     if (typeof Hackwize!=='undefined') {
       Hackwize.setCloak('Home','https://ssl.gstatic.com/classroom/favicon.png');
       if (typeof Hackwize.setRedirectUrl === 'function') Hackwize.setRedirectUrl('https://classroom.google.com');
@@ -679,7 +694,13 @@ document.addEventListener('DOMContentLoaded', function() {
       renderHome();
     }); })(srtOpts[j]);
   }
-  document.addEventListener('click', function(){ var dd=el('sort-dropdown'); if(dd)dd.classList.remove('open'); });
+  document.addEventListener('click', function(e){
+    var jbarEl = document.getElementById('jbar') ||
+                 document.getElementById('jplay-bar') ||
+                 document.querySelector('.jbar');
+    if (jbarEl && jbarEl.contains(e.target)) return;
+    var dd=el('sort-dropdown'); if(dd)dd.classList.remove('open');
+  });
 
   /* ── Random ── */
   var rndBtn=el('random-btn');
@@ -766,6 +787,37 @@ document.addEventListener('DOMContentLoaded', function() {
       var secPanel = JplaySecurity.buildSettingsPanel();
       if (resetRow) secCol.insertBefore(secPanel, resetRow);
       else secCol.appendChild(secPanel);
+
+      /* Persist any toggle/select/input changes inside the security panel */
+      secPanel.addEventListener('change', function(e) {
+        var t = e.target;
+        if (!t.id) return;
+        try {
+          if (t.type === 'checkbox') {
+            localStorage.setItem('jplay_sec_' + t.id, t.checked ? '1' : '0');
+          } else {
+            localStorage.setItem('jplay_sec_' + t.id, t.value);
+          }
+        } catch(err){}
+      });
+
+      /* Restore persisted security panel values */
+      (function() {
+        var inputs = secPanel.querySelectorAll('input, select');
+        for (var si = 0; si < inputs.length; si++) {
+          (function(inp) {
+            if (!inp.id) return;
+            try {
+              var saved = localStorage.getItem('jplay_sec_' + inp.id);
+              if (saved === null) return;
+              if (inp.type === 'checkbox') { inp.checked = saved === '1'; }
+              else { inp.value = saved; }
+              /* Fire a change event so JplaySecurity can react to restored values */
+              inp.dispatchEvent(new Event('change', { bubbles: true }));
+            } catch(err){}
+          })(inputs[si]);
+        }
+      })();
     }
   }
 
