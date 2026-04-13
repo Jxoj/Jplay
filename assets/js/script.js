@@ -188,6 +188,7 @@ function loadGames() {
       state.sections = Array.isArray(data) ? DEFAULT_SECTIONS : (data.sections || DEFAULT_SECTIONS);
       state.gamesLoaded = true;
       renderHome();
+      if (typeof window.renderRecentlyPlayed === 'function') window.renderRecentlyPlayed();
     })
     .catch(function(e) {
       console.warn('[Jplay] Games load failed:', e.message);
@@ -425,30 +426,20 @@ function renderHome() {
     }
     s.appendChild(grid); wrap.appendChild(s);
   });
+  /* Inject recently played after sections render */
+  if (typeof window.renderRecentlyPlayed === 'function') window.renderRecentlyPlayed();
 }
 
-/* ── GAME MODAL ─────────────────────────────────── */
+/* ── GAME MODAL → delegated to JBar ──────────────── */
 function openGame(game) {
   if (!game) return;
-  state.currentGame=game; state.modalOpen=true;
-  var mt=el('modal-title');    if(mt) mt.textContent=game.title||'';
-  var mc=el('modal-category'); if(mc) mc.textContent=game.category||'';
-  var frame=el('game-frame'), loader=el('modal-loader');
-  if (frame) frame.src='';
-  if (loader) loader.classList.remove('hidden');
-  var mo=el('game-modal'); if(mo) mo.classList.add('open');
-  document.body.style.overflow='hidden';
-  setTimeout(function(){
-    if (frame) {
-      if (game.url) { frame.src=game.url; frame.onload=function(){setTimeout(function(){if(loader)loader.classList.add('hidden');},350);}; }
-      else { setTimeout(function(){if(loader)loader.classList.add('hidden');},700); }
-    }
-  },100);
+  state.currentGame = game;
+  if (typeof JBar !== 'undefined') {
+    JBar.openGame(game);
+  }
 }
 function closeModal() {
-  var mo=el('game-modal'); if(mo) mo.classList.remove('open');
-  state.modalOpen=false; document.body.style.overflow='';
-  setTimeout(function(){ var f=el('game-frame'); if(f) f.src=''; state.currentGame=null; },350);
+  if (typeof JBar !== 'undefined') JBar.closeGame();
 }
 
 /* ── MAIN INIT ──────────────────────────────────── */
@@ -543,12 +534,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var dPlay=el('detail-play-btn');
   if (dPlay) dPlay.addEventListener('click', function(){ closeDetail(); openGame(state.currentGame); });
 
-  /* ── Modal ── */
+  /* ── Modal (legacy, not used) ── */
   var mClose=el('modal-close-btn');  if(mClose)  mClose.addEventListener('click', closeModal);
-  var mFull=el('modal-fullscreen-btn');
-  if (mFull) mFull.addEventListener('click', function(){ var f=el('game-frame'); if(f&&f.requestFullscreen) f.requestFullscreen(); });
-  var mOv=el('game-modal');
-  if (mOv) mOv.addEventListener('click', function(e){ if(e.target===mOv) closeModal(); });
 
   /* ── Settings controls ── */
   var thSel=el('theme-select');       if(thSel)  thSel.addEventListener('change',  function(e){ document.body.dataset.theme   = e.target.value; });
@@ -690,7 +677,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var tag=document.activeElement?document.activeElement.tagName:'';
     var inInput=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
     if (e.key==='/'&&!inInput) { e.preventDefault(); if(state.currentPage!=='home')safeNavigateTo('home'); var si=el('search-input');if(si)si.focus(); }
-    if (e.key==='Escape') { if(state.modalOpen)closeModal(); else if(state.detailOpen)closeDetail(); }
+    if (e.key==='Escape') {
+      if (typeof JBar !== 'undefined' && JBar.isJbarVisible && JBar.isJbarVisible()) { JBar.hideJbar(); }
+      else if(state.detailOpen) closeDetail();
+    }
     /* 0 handled by hackwize.js capture phase */
   });
 
@@ -712,12 +702,69 @@ document.addEventListener('DOMContentLoaded', function() {
     syncHackwizeSettingsUI();
   }
 
+  /* ── JBar init ── */
+  if (typeof JBar !== 'undefined') JBar.init();
+
+  /* ── Security check (show lock screen if configured) ── */
+  if (typeof JplaySecurity !== 'undefined') JplaySecurity.check();
+
+  /* ── Inject Security settings panel ── */
+  if (typeof JplaySecurity !== 'undefined') {
+    var secCol = document.querySelector('.settings-col:last-child');
+    if (secCol) {
+      var resetRow = secCol.querySelector('.settings-reset-row');
+      var secPanel = JplaySecurity.buildSettingsPanel();
+      if (resetRow) secCol.insertBefore(secPanel, resetRow);
+      else secCol.appendChild(secPanel);
+    }
+  }
+
+  /* ── Setup screen ── */
+  if (typeof JplaySetup !== 'undefined') JplaySetup.show();
+
+  /* ── Recently played renderer ── */
+  window.renderRecentlyPlayed = function() {
+    var homeEl = el('page-home');
+    var sections = el('home-sections');
+    if (!sections) return;
+    var recent = (typeof JBar !== 'undefined') ? JBar.getRecentlyPlayed() : [];
+    var existing = el('recently-played-section');
+    if (existing) existing.remove();
+    if (recent.length === 0) return;
+
+    var sec = mk('section','section');
+    sec.id = 'recently-played-section';
+    var hdr = mk('div','section-header');
+    var h2 = mk('h2','section-title'); h2.textContent = 'Recently Played';
+    var tag = mk('span','section-tag'); tag.textContent = 'Last Played';
+    hdr.appendChild(h2); hdr.appendChild(tag);
+    var row = mk('div','recently-played-row');
+    recent.forEach(function(g) {
+      var tile = mk('div','recent-tile');
+      var bg = mk('div','recent-tile-bg');
+      if (g.background) { bg.style.backgroundImage = "url('" + g.background + "')"; }
+      else { bg.style.background = 'linear-gradient(135deg,' + (g.color||'#1a2a4a') + ' 0%,#0a0c10 100%)'; }
+      var overlay = mk('div','recent-tile-overlay');
+      var lbl = mk('span','recent-tile-label'); lbl.textContent = g.title || '';
+      tile.appendChild(bg); tile.appendChild(overlay); tile.appendChild(lbl);
+      tile.addEventListener('click', function() { openGame(g); });
+      row.appendChild(tile);
+    });
+    sec.appendChild(hdr); sec.appendChild(row);
+    /* Insert before first section */
+    var firstSection = sections.querySelector('section');
+    if (firstSection) sections.insertBefore(sec, firstSection);
+    else sections.appendChild(sec);
+  };
+
   /* Load data */
   if (TEST_MODE) {
     console.log('[Jplay] TEST MODE active');
     state.games=FAKE_GAMES; state.sections=DEFAULT_SECTIONS;
     state.wallpapers=FAKE_WALLPAPERS; state.gamesLoaded=true;
-    renderHome(); renderWallpaperPicker();
+    renderHome();
+    renderWallpaperPicker();
+    window.renderRecentlyPlayed();
   } else {
     loadGames(); loadWallpapers();
   }

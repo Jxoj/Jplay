@@ -1,0 +1,795 @@
+/* ══════════════════════════════════════════════
+   JBAR — Game Bar
+══════════════════════════════════════════════ */
+
+/* ── Keyframes ── */
+@keyframes jbarBounceIn {
+  0%   { transform: translateX(-50%) translateY(120px) scale(0.88); opacity: 0; }
+  55%  { transform: translateX(-50%) translateY(-8px)  scale(1.03); opacity: 1; }
+  75%  { transform: translateX(-50%) translateY(4px)   scale(0.98); }
+  90%  { transform: translateX(-50%) translateY(-2px)  scale(1.01); }
+  100% { transform: translateX(-50%) translateY(0)     scale(1);    opacity: 1; }
+}
+@keyframes jbarSlideOut {
+  0%   { transform: translateX(-50%) translateY(0)     scale(1);    opacity: 1; }
+  100% { transform: translateX(-50%) translateY(120px) scale(0.88); opacity: 0; }
+}
+@keyframes jbarGlowPulse {
+  0%, 100% { box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1); }
+  50%       { box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.35), 0 0 28px rgba(59,130,246,0.12); }
+}
+@keyframes jbarBtnPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.82); }
+  70%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes switcherCardIn {
+  from { opacity: 0; transform: translateY(28px) scale(0.93); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes switcherHeaderIn {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes panelSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Fullscreen game overlay */
+#jplay-fullscreen-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: #000;
+}
+#jplay-fullscreen-overlay.active {
+  display: block;
+  animation: overlayFadeIn 0.38s ease forwards;
+}
+/* Peek mode: Alt+J pressed with no game open — show overlay transparently just enough for the bar */
+#jplay-fullscreen-overlay.jbar-peek {
+  display: block;
+  background: transparent;
+  pointer-events: none;
+}
+#jplay-fullscreen-overlay.jbar-peek #jbar {
+  pointer-events: all;
+}
+#jplay-game-container {
+  position: absolute;
+  inset: 0;
+}
+.jplay-game-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: none;
+  background: #000;
+}
+
+/* JBar itself */
+#jbar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(120px) scale(0.88);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: rgba(10, 12, 16, 0.92);
+  backdrop-filter: blur(28px) saturate(1.6);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1);
+  opacity: 0;
+  pointer-events: none;
+  min-width: 480px;
+  max-width: 90vw;
+  /* no CSS transition — we use keyframe animations for enter/exit */
+}
+#jbar.visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(-50%) translateY(0) scale(1);
+  animation: jbarBounceIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+             jbarGlowPulse 3s ease-in-out 0.6s infinite;
+}
+#jbar.hiding {
+  animation: jbarSlideOut 0.3s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  pointer-events: none;
+}
+
+.jbar-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+.jbar-game-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.jbar-game-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.jbar-no-game-tag {
+  font-size: 0.7rem;
+  color: var(--text3);
+  display: none;
+}
+
+.jbar-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.jbar-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  position: relative;
+}
+.jbar-btn:active {
+  animation: jbarBtnPop 0.28s ease forwards;
+}
+.jbar-btn svg { width: 15px; height: 15px; }
+.jbar-btn:hover {
+  background: rgba(59,130,246,0.15);
+  color: var(--blue);
+  border-color: rgba(59,130,246,0.3);
+}
+.jbar-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.jbar-exit {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.jbar-exit:hover {
+  background: rgba(239,68,68,0.2);
+  border-color: rgba(239,68,68,0.4);
+  color: #ef4444;
+}
+
+.jbar-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.jbar-clock {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--text2);
+  letter-spacing: 0.02em;
+  min-width: 64px;
+  text-align: right;
+}
+
+/* JBar panels (Volume) */
+.jbar-panel {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: rgba(12, 15, 22, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 16px 18px;
+  min-width: 280px;
+  max-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 910;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.jbar-panel.open {
+  opacity: 1;
+  pointer-events: all;
+  animation: panelSlideUp 0.22s cubic-bezier(0.34, 1.46, 0.64, 1) forwards;
+}
+.jbar-panel-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.jbar-panel-subtitle {
+  font-size: 0.7rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 8px 0 6px;
+}
+.jbar-panel-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 8px 0;
+}
+.jbar-vol-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.jbar-vol-label {
+  font-size: 0.76rem;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.jbar-vol-slider {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+.jbar-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  background: var(--blue);
+  border-radius: 50%;
+  border: 2px solid rgba(10,12,16,0.8);
+  cursor: pointer;
+}
+.jbar-vol-val {
+  font-size: 0.72rem;
+  color: var(--blue);
+  font-weight: 600;
+  min-width: 32px;
+  text-align: right;
+}
+.jbar-vol-game-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.jbar-vol-game-row:last-child { border-bottom: none; }
+.jbar-vol-game-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.jbar-vol-game-fb {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--surface2);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.jbar-vol-game-info {
+  font-size: 0.74rem;
+  color: var(--text2);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jbar-vol-empty {
+  font-size: 0.76rem;
+  color: var(--text3);
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* Game Switcher Panel — full screen, appended to body */
+.jbar-switcher-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 10, 0.97);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 9800; /* above sidebar (z ~100), overlay (800), jbar (900) */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+.jbar-switcher-panel.open {
+  opacity: 1;
+  pointer-events: all;
+}
+/* Stagger cards inside switcher */
+.jbar-switcher-panel.open .jbar-switcher-header {
+  animation: switcherHeaderIn 0.3s ease forwards;
+}
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(1)  { animation: switcherCardIn 0.32s ease 0.04s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(2)  { animation: switcherCardIn 0.32s ease 0.09s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(3)  { animation: switcherCardIn 0.32s ease 0.14s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(4)  { animation: switcherCardIn 0.32s ease 0.18s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(5)  { animation: switcherCardIn 0.32s ease 0.22s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(6)  { animation: switcherCardIn 0.32s ease 0.25s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(7)  { animation: switcherCardIn 0.32s ease 0.28s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(8)  { animation: switcherCardIn 0.32s ease 0.30s  both; }
+.jbar-switcher-panel.open .jbar-switcher-card:nth-child(n+9) { animation: switcherCardIn 0.32s ease 0.32s both; }
+
+.jbar-switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 32px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+.jbar-switcher-close-panel {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.jbar-switcher-close-panel:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
+.jbar-switcher-close-panel svg { width: 14px; height: 14px; }
+.jbar-switcher-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 28px 32px;
+  overflow-y: auto;
+  align-content: flex-start;
+}
+.jbar-switcher-card {
+  position: relative;
+  width: 220px;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s, transform 0.22s cubic-bezier(0.34,1.46,0.64,1), box-shadow 0.2s;
+  /* start hidden for animation */
+  opacity: 0;
+}
+.jbar-switcher-card:hover {
+  border-color: rgba(59,130,246,0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+}
+.jbar-switcher-card.active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px var(--blue), 0 8px 24px rgba(59,130,246,0.2);
+}
+.jbar-switcher-thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  position: relative;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.jbar-switcher-thumb-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.12);
+}
+.jbar-switcher-label {
+  padding: 9px 12px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jbar-switcher-close {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 5;
+}
+.jbar-switcher-close svg { width: 10px; height: 10px; }
+.jbar-switcher-card:hover .jbar-switcher-close { opacity: 1; }
+.jbar-switcher-close:hover { background: rgba(239,68,68,0.7); color: #fff; border-color: rgba(239,68,68,0.5); }
+
+.jbar-switcher-add {
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.12);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 10px;
+  color: var(--text3);
+  font-size: 0.8rem;
+}
+.jbar-switcher-add:hover { border-color: var(--blue); color: var(--blue); }
+.jbar-switcher-plus {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(59,130,246,0.1);
+  border: 2px solid rgba(59,130,246,0.2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue);
+}
+.jbar-switcher-plus svg { width: 20px; height: 20px; }
+
+/* ══════════════════════════════════════════════
+   LOCK SCREEN
+══════════════════════════════════════════════ */
+#jplay-lockscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: var(--bg);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease;
+}
+#jplay-lockscreen.fade-out { opacity: 0; pointer-events: none; }
+
+.lockscreen-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lockscreen-box {
+  background: rgba(10,12,16,0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 22px;
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 320px;
+  box-shadow: 0 24px 72px rgba(0,0,0,0.7);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+}
+
+.lockscreen-box.shake {
+  animation: lcShake 0.4s ease;
+}
+.lockscreen-box.unlock-anim {
+  transform: scale(1.05);
+  opacity: 0;
+}
+@keyframes lcShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.lockscreen-clock {
+  text-align: center;
+  margin-bottom: 4px;
+}
+.lc-time {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 3rem;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.lc-ampm {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.lockscreen-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+.lockscreen-sub {
+  font-size: 0.82rem;
+  color: var(--text2);
+  text-align: center;
+}
+
+.lockscreen-input {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.lockscreen-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-muted);
+}
+
+.lockscreen-err {
+  font-size: 0.76rem;
+  color: #ef4444;
+  min-height: 18px;
+  text-align: center;
+}
+
+.lockscreen-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--blue);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+}
+.lockscreen-btn:hover { background: var(--blue-dim); transform: translateY(-1px); }
+
+/* ══════════════════════════════════════════════
+   SETUP / ONBOARDING
+══════════════════════════════════════════════ */
+#jplay-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9995;
+  background: rgba(4, 6, 10, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease;
+}
+#jplay-setup-overlay.fade-out { opacity: 0; pointer-events: none; }
+
+.setup-box {
+  background: rgba(15,18,24,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  padding: 44px 48px 32px;
+  width: min(500px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+}
+
+.setup-slide-area {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.setup-slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  animation: setupSlideIn 0.3s ease;
+}
+@keyframes setupSlideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.setup-slide-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.15);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-slide-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.setup-slide-desc {
+  font-size: 0.88rem;
+  color: var(--text2);
+  line-height: 1.7;
+  max-width: 360px;
+}
+
+.setup-dots {
+  display: flex;
+  gap: 8px;
+}
+.setup-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  transition: background 0.2s, transform 0.2s;
+}
+.setup-dot.active {
+  background: var(--blue);
+  transform: scale(1.2);
+}
+
+.setup-nav {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.setup-nav-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: var(--text2);
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex: 1;
+}
+.setup-nav-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.setup-nav-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.setup-nav-primary:hover { background: var(--blue-dim); color: #fff; }
+
+/* ══════════════════════════════════════════════
+   RECENTLY PLAYED SECTION
+══════════════════════════════════════════════ */
+.recently-played-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.recently-played-row::-webkit-scrollbar { height: 4px; }
+.recently-played-row::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+.recent-tile {
+  position: relative;
+  flex-shrink: 0;
+  width: 150px;
+  height: 100px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  background: var(--surface);
+}
+.recent-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  border-color: rgba(59,130,246,0.3);
+}
+.recent-tile-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.recent-tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%);
+}
+.recent-tile-label {
+  position: absolute;
+  bottom: 7px;
+  left: 8px;
+  right: 8px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
