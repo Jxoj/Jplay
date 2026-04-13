@@ -18,10 +18,42 @@ var JBar = (function () {
   var bgMuted        = false;
   var clockInterval  = null;
 
-  /* Inject an Alt+J + mousemove-near-bottom → postMessage forwarder into an iframe
-     (same-origin only; cross-origin iframes are handled by the window.blur re-inject +
-     postMessage listener and the sentinel-strip approach below) */
+  /* ── KEY INTERCEPT OVERLAY ──────────────────────────────────────────────
+     A transparent, pointer-events-none div that sits over the iframe and
+     receives keydown events even when the iframe has focus — because it is
+     in the PARENT document's focus chain.
+     This is the only 100%-reliable way to catch Alt+J for cross-origin iframes.
+  ── */
+  var keyInterceptEl = null;
+
+  function buildKeyInterceptOverlay() {
+    if (keyInterceptEl) return;
+    keyInterceptEl = document.createElement('div');
+    keyInterceptEl.id = 'jplay-key-intercept';
+    keyInterceptEl.setAttribute('tabindex', '-1');
+    keyInterceptEl.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:9',            /* below sentinel(10) and jbar, above iframe */
+      'pointer-events:none',  /* clicks pass through to the game */
+      'outline:none',
+      'background:transparent',
+    ].join(';');
+    /* Listen for Alt+J on the overlay itself — fires when it (or a child) has focus */
+    keyInterceptEl.addEventListener('keydown', function (e) {
+      if (e.altKey && (e.key === 'j' || e.key === 'J')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (jbarVisible) hideJbar(); else showJbar();
+      }
+    }, true);
+    document.body.appendChild(keyInterceptEl);
+  }
+
+  /* Inject an Alt+J + mousemove forwarder into same-origin iframes.
+     Cross-origin iframes are handled by the key-intercept overlay + postMessage. */
   function injectAltJIntoIframe(iframe) {
+    /* Try same-origin injection first */
     var script = [
       '(function(){',
       '  if(window.__jplay_altj_injected__) return;',
@@ -32,7 +64,6 @@ var JBar = (function () {
       '      try{ window.top.postMessage({type:"__jplay_altj__"},"*"); }catch(ex){}',
       '    }',
       '  }, true);',
-      '  /* Forward mouse-near-bottom so JBar can appear even when iframe has focus */',
       '  document.addEventListener("mousemove", function(e){',
       '    if(e.clientY > window.innerHeight - 80){',
       '      try{ window.top.postMessage({type:"__jplay_mousebottom__"},"*"); }catch(ex){}',
@@ -40,14 +71,44 @@ var JBar = (function () {
       '  });',
       '})();'
     ].join('');
+    var injected = false;
     try {
       var doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
       if (doc && doc.body) {
         var s = doc.createElement('script');
         s.textContent = script;
         doc.body.appendChild(s);
+        injected = true;
       }
-    } catch(ex) { /* cross-origin: silently skip, postMessage path covers this */ }
+    } catch(ex) { /* cross-origin — handled by key-intercept overlay */ }
+    return injected;
+  }
+
+  /* Focus the key-intercept overlay so the parent window regains keyboard events.
+     Called every time the iframe might steal focus. */
+  function reclaimKeyboardFocus() {
+    buildKeyInterceptOverlay();
+    if (keyInterceptEl) {
+      try { keyInterceptEl.focus({ preventScroll: true }); } catch(e) {}
+    }
+  }
+
+  /* Continuously poll to reclaim focus while games are running.
+     This fires every 500ms — cheap since it's just a focus() call. */
+  var _focusPollTimer = null;
+  function startFocusPoll() {
+    if (_focusPollTimer) return;
+    _focusPollTimer = setInterval(function () {
+      if (sessions.length === 0) return;
+      /* Only steal focus back if the active element is one of our iframes */
+      var ae = document.activeElement;
+      if (ae && ae.tagName === 'IFRAME') {
+        reclaimKeyboardFocus();
+      }
+    }, 300);
+  }
+  function stopFocusPoll() {
+    if (_focusPollTimer) { clearInterval(_focusPollTimer); _focusPollTimer = null; }
   }
 
   /* ── Storage helpers ── */
@@ -185,10 +246,15 @@ var JBar = (function () {
     var sess = { id: id, game: game, iframe: iframe, canvas: canvas, vol: 1.0, navHistory: [] };
     sessions.push(sess);
 
-    /* Inject Alt+J forwarder into this iframe once it loads */
+    /* Inject Alt+J forwarder (same-origin) + reclaim keyboard focus */
     iframe.addEventListener('load', function () {
       injectAltJIntoIframe(iframe);
+      /* After load the iframe will have focus — reclaim it immediately */
+      setTimeout(reclaimKeyboardFocus, 50);
     });
+
+    /* Reclaim focus right away too (before load fires) */
+    setTimeout(reclaimKeyboardFocus, 100);
 
     switchTo(id);
   }
@@ -615,36 +681,37 @@ var JBar = (function () {
   }
 
   function wireEvents() {
-    /* Alt+J toggle — on the main document */
-    document.addEventListener('keydown', function (e) {
+    /* Alt+J on the main document — capture phase catches it before any child */
+    window.addEventListener('keydown', function (e) {
       if (e.altKey && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
         if (jbarVisible) hideJbar(); else showJbar();
       }
-    });
+    }, true /* capture — fires even when iframe has DOM focus */);
 
-    /* Alt+J forwarded from inside iframes via postMessage */
+    /* Alt+J forwarded from same-origin iframes via postMessage */
     window.addEventListener('message', function (e) {
       if (e.data && e.data.type === '__jplay_altj__') {
         if (jbarVisible) hideJbar(); else showJbar();
       }
-      /* Mouse-near-bottom forwarded from inside cross-origin iframes */
       if (e.data && e.data.type === '__jplay_mousebottom__') {
         var overlay = document.getElementById('jplay-fullscreen-overlay');
-        if (overlay && overlay.classList.contains('active')) {
-          showJbar();
-        }
+        if (overlay && overlay.classList.contains('active')) showJbar();
       }
     });
 
-    /* On window blur the iframe stole focus — re-inject into all active iframes */
+    /* On window blur (iframe stole focus) — reclaim keyboard immediately */
     window.addEventListener('blur', function () {
-      setTimeout(function () {
-        for (var i = 0; i < sessions.length; i++) {
-          injectAltJIntoIframe(sessions[i].iframe);
-        }
-      }, 200);
+      /* Re-inject into same-origin iframes */
+      for (var i = 0; i < sessions.length; i++) {
+        injectAltJIntoIframe(sessions[i].iframe);
+      }
+      /* Reclaim keyboard focus for cross-origin iframes */
+      setTimeout(reclaimKeyboardFocus, 0);
     });
+
+    /* Start the 300ms focus-reclaim poll */
+    startFocusPoll();
 
     /* Mouse move near bottom shows bar when game is active */
     document.addEventListener('mousemove', function (e) {
