@@ -22,5 +22,13 @@
     "thumbnail": "https://jxoplay.netlify.app/wallpapers/blue_wave.mp4",
     "color": "#0a1a2a",
     "tags": ["abstract", "video"]
+  },
+  {
+    "id": "minecraft",
+    "name": "Minecraft",
+    "url": "https://jxoplay.netlify.app/wallpapers/minecraft.mp4",
+    "thumbnail": "https://jxoplay.netlify.app/wallpapers/minecraft.mp4",
+    "color": "#0a1a2a",
+    "tags": ["mc", "video"]
   }
 ]
