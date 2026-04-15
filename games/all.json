@@ -11,5 +11,18 @@
     "accent": "#40300d",
     "featured": true,
     "tags": ["unblocked", "netlify", "libary"]
+  },
+  {
+    "id": "nb22",
+    "title": "Nintendo Boi 22",
+    "description": "A libary of hundreds of games, Ported from github.",
+    "category": "libary",
+    "url": "https://nboi.netlify.app",
+    "icon": "https://jxoplay.netlify.app/games/nboi/icon.png",
+    "background": "https://jxoplay.netlify.app/games/nboi/background.gif",
+    "color": "#c4a051",
+    "accent": "#40300d",
+    "featured": false,
+    "tags": ["unblocked", "netlify", "libary"]
   }
 ]
