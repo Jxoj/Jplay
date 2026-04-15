@@ -8,7 +8,6 @@
   <meta http-equiv="Expires" content="0" />
   <title>Home</title>
   <link rel="stylesheet" href="assets/css/style.css?v=20260412" />
-  <link rel="stylesheet" href="assets/css/jbar.css?v=20260412" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet" />
   <style>
@@ -102,6 +101,7 @@
 <body data-theme="dark" data-density="normal">
 
 <div id="bg-image-layer"></div>
+<video id="bg-video-layer" autoplay loop muted playsinline style="display:none;position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;pointer-events:none;"></video>
 <canvas id="bg-canvas"></canvas>
 <div id="ripple-container"></div>
 
@@ -241,11 +241,11 @@
               <div class="wallpaper-grid" id="wallpaper-grid"><span class="wallpaper-empty">Loading…</span></div>
             </div>
             <div style="display:none" id="bg-upload-zone">
-              <input type="file" id="bg-file-input" accept="image/*" style="display:none" />
+              <input type="file" id="bg-file-input" accept="image/*,video/mp4,video/webm" style="display:none" />
               <div class="upload-drop-area" id="upload-drop-area">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-                <span class="upload-label">Drop image here</span>
-                <span class="upload-hint">or click to browse</span>
+                <span class="upload-label">Drop image or video here</span>
+                <span class="upload-hint">or click to browse (jpg, png, mp4…)</span>
                 <button class="upload-browse-btn" id="upload-browse-btn">Browse</button>
               </div>
               <div style="display:none" id="upload-preview">
@@ -462,9 +462,133 @@
   </div>
 </div>
 
-<!-- hackwize BEFORE script -->
-<script src="assets/js/apis/hackwize.js?v=20260412"></script>
-<script src="assets/js/jbar.js?v=20260412"></script>
+<script>
+/* ── JBar stub — JBar removed, provide minimal shim so script.js doesn't error ── */
+var JBar = (function () {
+  var _sessions = [];
+  var _newTab = (function(){ try{ var v=localStorage.getItem('__jplay_newtab_mode__'); return v===null?true:v==='1'; }catch(e){return true;} })();
+
+  function _buildGameUrl(game) {
+    var url = game.url || '';
+    var pwInput = document.getElementById('global-password-input');
+    var pw = pwInput ? pwInput.value.trim() : '';
+    if (pw) url += (url.indexOf('?') === -1 ? '?' : '&') + 'password=' + encodeURIComponent(pw);
+    return url;
+  }
+
+  /* Script injected into every game popup — forwards 0-key back to opener */
+  var POPUP_INJECT = (function(){
+    var lines = [
+      '(function(){',
+      '  if(window.__jplay_0key_injected__)return;',
+      '  window.__jplay_0key_injected__=true;',
+      '  function fwd0(e){',
+      '    if((e.key==="0"||e.keyCode===48)&&!e.altKey&&!e.ctrlKey&&!e.metaKey){',
+      '      var t=e.target?e.target.tagName:"";',
+      '      if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT")return;',
+      '      e.preventDefault();e.stopPropagation();',
+      '      try{window.opener.postMessage({type:"__jplay_0key__"},"*");}catch(x){}',
+      '    }',
+      '  }',
+      '  document.addEventListener("keydown",fwd0,true);',
+      '  var fr=document.getElementById("gf");',
+      '  if(fr){',
+      '    fr.addEventListener("load",function(){',
+      '      try{',
+      '        var d=fr.contentDocument||fr.contentWindow.document;',
+      '        var s=d.createElement("script");',
+      '        s.textContent="(function(){if(window.__jplay_0i)return;window.__jplay_0i=true;document.addEventListener(\\"keydown\\",function(e){if((e.key===\\"0\\"||e.keyCode===48)&&!e.altKey&&!e.ctrlKey&&!e.metaKey){var t=e.target?e.target.tagName:\\"\\";if(t===\\"INPUT\\"||t===\\"TEXTAREA\\"||t===\\"SELECT\\")return;e.preventDefault();e.stopPropagation();try{window.top.opener.postMessage({type:\\"__jplay_0key__\\"},\\"*\\");}catch(x){}}},true);})()";',
+      '        d.body.appendChild(s);',
+      '      }catch(ex){}',
+      '    });',
+      '  }',
+      '})();'
+    ];
+    return lines.join('');
+  })();
+
+  function _buildPopupHTML(gameUrl, gameTitle) {
+    var escaped = gameUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>' + (gameTitle||'Game') + '</title>' +
+      '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#000}' +
+      '#gf{position:absolute;inset:0;width:100%;height:100%;border:none}</style></head>' +
+      '<body><iframe id="gf" src=\'' + escaped + '\' allowfullscreen allow="autoplay; fullscreen; payment"></iframe>' +
+      '<script>' + POPUP_INJECT + '<\/script></body></html>';
+  }
+
+  function openGame(game) {
+    if (!game) return;
+    /* Store recently played */
+    var recent = [];
+    try { recent = JSON.parse(localStorage.getItem('__jplay_recently_played__')) || []; } catch(e) {}
+    recent = recent.filter(function(r){ return r.id !== game.id; });
+    recent.unshift({id:game.id,title:game.title,icon:game.icon,category:game.category,color:game.color,background:game.background,description:game.description,url:game.url});
+    if (recent.length > 10) recent = recent.slice(0, 10);
+    try { localStorage.setItem('__jplay_recently_played__', JSON.stringify(recent)); } catch(e) {}
+    if (typeof window.renderRecentlyPlayed === 'function') window.renderRecentlyPlayed();
+
+    var gameUrl = _buildGameUrl(game);
+    if (_newTab) {
+      var popup = window.open('about:blank', '_blank', 'noopener=no');
+      if (popup) {
+        popup.document.open();
+        popup.document.write(_buildPopupHTML(gameUrl, game.title));
+        popup.document.close();
+        return;
+      }
+    }
+    /* Inline fallback — use existing modal */
+    var modal = document.getElementById('game-modal');
+    var frame = document.getElementById('game-frame');
+    var titleEl = document.getElementById('modal-title');
+    var catEl = document.getElementById('modal-category');
+    if (!modal || !frame) return;
+    if (titleEl) titleEl.textContent = game.title || '';
+    if (catEl) catEl.textContent = game.category || '';
+    frame.src = gameUrl;
+    modal.style.display = 'flex';
+  }
+
+  function closeGame() {
+    var modal = document.getElementById('game-modal');
+    var frame = document.getElementById('game-frame');
+    if (frame) frame.src = '';
+    if (modal) modal.style.display = 'none';
+  }
+
+  function getRecentlyPlayed() {
+    try { return JSON.parse(localStorage.getItem('__jplay_recently_played__')) || []; } catch(e) { return []; }
+  }
+
+  return {
+    init: function(){},
+    openGame: openGame,
+    closeGame: closeGame,
+    getRecentlyPlayed: getRecentlyPlayed,
+    addRecentlyPlayed: function(g){ openGame(g); },
+    showJbar: function(){},
+    hideJbar: function(){},
+    isJbarVisible: function(){ return false; },
+    pauseBg: function(){},
+    resumeBg: function(){},
+    sessions: _sessions,
+    getNewTabMode: function(){ return _newTab; },
+    setNewTabMode: function(v){ _newTab=!!v; try{localStorage.setItem('__jplay_newtab_mode__',v?'1':'0');}catch(e){} },
+  };
+})();
+
+/* ── Forward 0-key from game popups back to Hackwize ── */
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === '__jplay_0key__') {
+    if (typeof Hackwize !== 'undefined') {
+      if (typeof Hackwize.hide === 'function' && !Hackwize.isHidden()) Hackwize.hide();
+      else if (typeof Hackwize.restore === 'function') Hackwize.restore();
+      else if (typeof Hackwize.toggle === 'function') Hackwize.toggle();
+    }
+  }
+});
+</script>
+
 <script src="assets/js/script.js?v=20260412"></script>
 
 <script>
