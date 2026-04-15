@@ -220,45 +220,15 @@ function loadWallpapers() {
 }
 
 /* ── BACKGROUND ─────────────────────────────────── */
-function _isVideoUrl(url) {
-  return url && /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
-}
 function applyBackground() {
-  var layer  = el('bg-image-layer');
-  var vidEl  = el('bg-video-layer');
-  if (!layer) return;
+  var layer  = el('bg-image-layer'); if (!layer) return;
   var srcEl  = el('bg-source-select');
   var src    = srcEl ? srcEl.value : 'image';
-
-  var bgUrl = null;
-  if      (src === 'image')     bgUrl = 'assets/imgs/background.jpg';
-  else if (src === 'custom'  && state.customBgUrl)          bgUrl = state.customBgUrl;
-  else if (src === 'wallpaper' && state.selectedWallpaperUrl) bgUrl = state.selectedWallpaperUrl;
-
-  var isVideo = bgUrl && _isVideoUrl(bgUrl);
-
-  if (isVideo && vidEl) {
-    /* Show video layer, hide image layer */
-    if (vidEl.src !== bgUrl && vidEl.getAttribute('data-src') !== bgUrl) {
-      vidEl.setAttribute('data-src', bgUrl);
-      vidEl.src = bgUrl;
-      vidEl.load();
-      vidEl.play().catch(function(){});
-    }
-    vidEl.style.display = 'block';
-    vidEl.style.filter  = state.bgBlur > 0 ? 'blur(' + state.bgBlur + 'px)' : '';
-    layer.style.backgroundImage = 'none';
-    layer.style.filter = '';
-  } else {
-    /* Hide video layer, use image layer */
-    if (vidEl) { vidEl.style.display = 'none'; vidEl.src = ''; }
-    if (src === 'color' || !bgUrl) {
-      layer.style.backgroundImage = 'none';
-    } else {
-      layer.style.backgroundImage = "url('" + bgUrl + "')";
-    }
-    layer.style.filter = state.bgBlur > 0 ? 'blur(' + state.bgBlur + 'px)' : '';
-  }
+  if      (src === 'image')                           layer.style.backgroundImage = "url('assets/imgs/background.jpg')";
+  else if (src === 'custom' && state.customBgUrl)     layer.style.backgroundImage = "url('" + state.customBgUrl + "')";
+  else if (src === 'wallpaper' && state.selectedWallpaperUrl) layer.style.backgroundImage = "url('" + state.selectedWallpaperUrl + "')";
+  else if (src === 'color')                           layer.style.backgroundImage = 'none';
+  layer.style.filter = state.bgBlur > 0 ? 'blur(' + state.bgBlur + 'px)' : '';
   document.documentElement.style.setProperty('--bg-dim', state.bgDim);
 }
 
@@ -270,27 +240,9 @@ function renderWallpaperPicker() {
   state.wallpapers.forEach(function(wp) {
     var card  = mk('div','wallpaper-card');
     if (wp.color) card.style.background = wp.color;
-    var thumbUrl = wp.thumbnail || wp.url || '';
-    var isVid = _isVideoUrl(thumbUrl);
-    if (isVid) {
-      /* Use a muted looping video as thumbnail */
-      var vid = document.createElement('video');
-      vid.src = thumbUrl; vid.autoplay = true; vid.loop = true; vid.muted = true;
-      vid.setAttribute('playsinline', '');
-      vid.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;';
-      /* Badge */
-      var badge = document.createElement('span');
-      badge.textContent = '▶ Video';
-      badge.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.6rem;padding:2px 5px;border-radius:4px;pointer-events:none;';
-      card.style.position = 'relative';
-      card.appendChild(vid);
-      card.appendChild(badge);
-    } else {
-      var img = mk('img'); img.src = thumbUrl; img.alt = wp.name; img.loading = 'lazy';
-      card.appendChild(img);
-    }
-    var lbl = mk('span','wallpaper-label'); lbl.textContent = wp.name;
-    card.appendChild(lbl);
+    var img   = mk('img'); img.src = wp.thumbnail || wp.url || ''; img.alt = wp.name; img.loading = 'lazy';
+    var lbl   = mk('span','wallpaper-label'); lbl.textContent = wp.name;
+    card.appendChild(img); card.appendChild(lbl);
     card.addEventListener('click', function() {
       grid.querySelectorAll('.wallpaper-card').forEach(function(c){ c.classList.remove('selected'); });
       card.classList.add('selected');
@@ -566,36 +518,11 @@ document.addEventListener('DOMContentLoaded', function() {
   /* File upload */
   var bgFile=el('bg-file-input'), dropArea=el('upload-drop-area'), preview=el('upload-preview');
   function handleFile(file) {
-    if (!file) return;
-    var isImg = file.type.startsWith('image/');
-    var isVid = file.type.startsWith('video/');
-    if (!isImg && !isVid) return;
+    if (!file||!file.type.startsWith('image/')) return;
     if (state.customBgUrl) URL.revokeObjectURL(state.customBgUrl);
-    state.customBgUrl = URL.createObjectURL(file);
-    state.customBgIsVideo = isVid;
-    /* Update preview — swap img/video */
-    var previewWrap = el('upload-preview');
-    if (previewWrap) {
-      previewWrap.innerHTML = '';
-      if (isVid) {
-        var pv = document.createElement('video');
-        pv.src = state.customBgUrl; pv.autoplay = true; pv.loop = true; pv.muted = true;
-        pv.setAttribute('playsinline','');
-        pv.style.cssText = 'max-width:100%;max-height:120px;border-radius:6px;display:block;';
-        previewWrap.appendChild(pv);
-      } else {
-        var pi = document.createElement('img');
-        pi.id = 'upload-preview-img'; pi.src = state.customBgUrl; pi.alt = 'Preview';
-        previewWrap.appendChild(pi);
-      }
-      var infoDiv = document.createElement('div');
-      infoDiv.className = 'upload-preview-info';
-      var pn = document.createElement('span'); pn.id = 'upload-preview-name'; pn.textContent = file.name;
-      var chBtn = document.createElement('button'); chBtn.className = 'upload-change-btn'; chBtn.id = 'upload-change-btn'; chBtn.textContent = 'Change';
-      chBtn.addEventListener('click', function(e){ e.stopPropagation(); if(bgFile) bgFile.click(); });
-      infoDiv.appendChild(pn); infoDiv.appendChild(chBtn);
-      previewWrap.appendChild(infoDiv);
-    }
+    state.customBgUrl=URL.createObjectURL(file);
+    var pi=el('upload-preview-img'); if(pi) pi.src=state.customBgUrl;
+    var pn=el('upload-preview-name'); if(pn) pn.textContent=file.name;
     if(dropArea) dropArea.style.display='none';
     if(preview)  preview.style.display='';
     var sel=el('bg-source-select'); if(sel) sel.value='custom';
