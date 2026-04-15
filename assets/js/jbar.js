@@ -15,6 +15,7 @@ var JBar = (function () {
   var bgVol          = 0.4;
   var bgMuted        = false;
   var clockInterval  = null;
+  var bridgeChannel  = null;
 
   /* ── NEW-TAB MODE ── */
   function getNewTabMode() {
@@ -98,30 +99,63 @@ var JBar = (function () {
   /* ══ POPUP HTML BUILDER ══
      Generates the full HTML for the about:blank popup window.
      The popup contains a full-screen iframe pointing to the game URL,
-     plus a script that forwards Alt+J and mouse-at-bottom to the opener
-     via postMessage, and listens for volume/close commands. */
+      plus a script that forwards hotkeys and mouse-at-bottom to the opener
+      via postMessage, and listens for volume/close commands. */
   function buildPopupHTML(gameUrl, gameTitle) {
     var escaped = gameUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var innerScript = [
       '(function(){',
+      '  var __jplayBridge = null;',
+      '  try { __jplayBridge = new BroadcastChannel("__jplay_bridge__"); } catch(x) {}',
+      '  function __jplayEmit(msg){',
+      '    var sent = false;',
+      '    try { if (window.opener) { window.opener.postMessage(msg, "*"); sent = true; } } catch(x) {}',
+      '    if (!sent) { try { if (__jplayBridge) __jplayBridge.postMessage(msg); } catch(x) {} }',
+      '  }',
+      '  function __jplayStealth(){',
+      '    try{if(window.opener&&window.opener.Hackwize&&typeof window.opener.Hackwize.hide==="function"){window.opener.Hackwize.hide();}}catch(x){}',
+      '    __jplayEmit({type:"__jplay_stealth__"});',
+      '  }',
+      '  function __jplayIsEditable(target){',
+      '    if(!target) return false;',
+      '    var tag = (target.tagName || "").toUpperCase();',
+      '    return !!target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";',
+      '  }',
       '  document.addEventListener("keydown",function(e){',
       '    if(e.altKey&&(e.key==="j"||e.key==="J")){',
       '      e.preventDefault();',
-      '      try{window.opener.postMessage({type:"__jplay_altj__"},"*");}catch(x){}',
+      '      __jplayEmit({type:"__jplay_altj__"});',
+      '    }',
+      '    if(e.key==="0"&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!__jplayIsEditable(e.target)){',
+      '      e.preventDefault();',
+      '      __jplayStealth();',
+      '    }',
+      '  },true);',
+      '  window.addEventListener("keydown",function(e){',
+      '    if(e.key==="0"&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!__jplayIsEditable(e.target)){',
+      '      e.preventDefault();',
+      '      __jplayStealth();',
       '    }',
       '  },true);',
       '  document.addEventListener("mousemove",function(e){',
       '    if(e.clientY>window.innerHeight-80){',
-      '      try{window.opener.postMessage({type:"__jplay_mousebottom__"},"*");}catch(x){}',
+      '      __jplayEmit({type:"__jplay_mousebottom__"});',
       '    }',
       '  });',
+      '  var frameBridgeCode="(function(){if(window.__jplay_game_bridge_injected__)return;window.__jplay_game_bridge_injected__=true;function __jplayIsEditable(t){if(!t)return false;var tag=(t.tagName||\\\"\\\").toUpperCase();return !!t.isContentEditable||tag===\\\"INPUT\\\"||tag===\\\"TEXTAREA\\\"||tag===\\\"SELECT\\\";}document.addEventListener(\\\"keydown\\\",function(e){if(e.altKey&&(e.key===\\\"j\\\"||e.key===\\\"J\\\")){e.preventDefault();try{window.top.opener.postMessage({type:\\\"__jplay_altj__\\\"},\\\"*\\\");}catch(x){}}if(e.key===\\\"0\\\"&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!__jplayIsEditable(e.target)){e.preventDefault();try{if(window.top&&window.top.opener&&window.top.opener.Hackwize&&typeof window.top.opener.Hackwize.hide===\\\"function\\\"){window.top.opener.Hackwize.hide();}}catch(x){}try{window.top.opener.postMessage({type:\\\"__jplay_stealth__\\\"},\\\"*\\\");}catch(x){}}},true);document.addEventListener(\\\"mousemove\\\",function(e){if(e.clientY>window.innerHeight-80){try{window.top.opener.postMessage({type:\\\"__jplay_mousebottom__\\\"},\\\"*\\\");}catch(x){}}});})();";',
       '  var fr=document.getElementById("gf");',
       '  if(fr){',
+      '    fr.addEventListener("keydown",function(e){',
+      '      if(e.key==="0"&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!__jplayIsEditable(e.target)){',
+      '        e.preventDefault();',
+      '        __jplayStealth();',
+      '      }',
+      '    },true);',
       '    fr.addEventListener("load",function(){',
       '      try{',
       '        var d=fr.contentDocument||fr.contentWindow.document;',
       '        var s=d.createElement("script");',
-      '        s.textContent="(function(){if(window.__ji)return;window.__ji=true;document.addEventListener(\\"keydown\\",function(e){if(e.altKey&&(e.key===\\"j\\"||e.key===\\"J\\")){e.preventDefault();try{window.top.opener.postMessage({type:\\"__jplay_altj__\\"},\\"*\\");}catch(x){}}},true);document.addEventListener(\\"mousemove\\",function(e){if(e.clientY>window.innerHeight-80){try{window.top.opener.postMessage({type:\\"__jplay_mousebottom__\\"},\\"*\\");}catch(x){}}});})()";',
+      '        s.textContent=frameBridgeCode;',
       '        d.body.appendChild(s);',
       '      }catch(ex){}',
       '    });',
@@ -134,7 +168,7 @@ var JBar = (function () {
       '    if(e.data.type==="jplay_close"){window.close();}',
       '  });',
       '  window.addEventListener("beforeunload",function(){',
-      '    try{window.opener.postMessage({type:"__jplay_win_closed__",id:window.__jplay_sess_id__},"*");}catch(x){}',
+      '    __jplayEmit({type:"__jplay_win_closed__",id:window.__jplay_sess_id__});',
       '  });',
       '})();'
     ].join('');
@@ -174,7 +208,7 @@ var JBar = (function () {
 
   function openGameNewTab(game) {
     var gameUrl = buildGameUrl(game);
-    var popup = window.open('about:blank', '_blank', 'noopener=no');
+    var popup = window.open('about:blank', '_blank');
     if (!popup) {
       /* Popup blocked — fallback to inline */
       openGameInline(game);
@@ -340,12 +374,19 @@ var JBar = (function () {
         e.preventDefault(); e.stopPropagation();
         if (jbarVisible) hideJbar(); else showJbar('altj');
       }
+      if (e.key === '0' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof Hackwize !== 'undefined' && typeof Hackwize.hide === 'function') {
+          Hackwize.hide();
+        }
+      }
     }, true);
     document.body.appendChild(keyInterceptEl);
   }
 
   function injectAltJIntoIframe(iframe) {
-    var script = '(function(){if(window.__jplay_altj_injected__)return;window.__jplay_altj_injected__=true;document.addEventListener("keydown",function(e){if(e.altKey&&(e.key==="j"||e.key==="J")){e.preventDefault();try{window.top.postMessage({type:"__jplay_altj__"},"*");}catch(ex){}}},true);document.addEventListener("mousemove",function(e){if(e.clientY>window.innerHeight-80){try{window.top.postMessage({type:"__jplay_mousebottom__"},"*");}catch(ex){}}});})();';
+    var script = '(function(){if(window.__jplay_game_bridge_injected__)return;window.__jplay_game_bridge_injected__=true;function __jplayIsEditable(t){if(!t)return false;var tag=(t.tagName||"").toUpperCase();return !!t.isContentEditable||tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT";}document.addEventListener("keydown",function(e){if(e.altKey&&(e.key==="j"||e.key==="J")){e.preventDefault();try{window.top.postMessage({type:"__jplay_altj__"},"*");}catch(ex){}}if(e.key==="0"&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!__jplayIsEditable(e.target)){e.preventDefault();try{if(window.top&&window.top.Hackwize&&typeof window.top.Hackwize.hide==="function"){window.top.Hackwize.hide();}}catch(ex){}try{window.top.postMessage({type:"__jplay_stealth__"},"*");}catch(ex){}}},true);document.addEventListener("mousemove",function(e){if(e.clientY>window.innerHeight-80){try{window.top.postMessage({type:"__jplay_mousebottom__"},"*");}catch(ex){}}});})();';
     try {
       var doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
       if (doc && doc.body) {
@@ -697,6 +738,33 @@ var JBar = (function () {
   }
 
   function wireEvents() {
+    function handleBridgeMessage(data) {
+      if (!data) return;
+      if (data.type === '__jplay_altj__') {
+        if (jbarVisible) hideJbar(); else showJbar('altj');
+      }
+      if (data.type === '__jplay_mousebottom__') {
+        showJbar('mouse');
+      }
+      if (data.type === '__jplay_stealth__') {
+        if (typeof Hackwize !== 'undefined' && typeof Hackwize.hide === 'function') {
+          Hackwize.hide();
+        }
+      }
+      if (data.type === '__jplay_win_closed__' && data.id) {
+        for (var i = 0; i < sessions.length; i++) {
+          if (sessions[i].id === data.id) { closeGame(data.id); break; }
+        }
+      }
+    }
+
+    if (!bridgeChannel && typeof BroadcastChannel !== 'undefined') {
+      try {
+        bridgeChannel = new BroadcastChannel('__jplay_bridge__');
+        bridgeChannel.addEventListener('message', function(e){ handleBridgeMessage(e.data); });
+      } catch(e) {}
+    }
+
     window.addEventListener('keydown', function (e) {
       if (e.altKey && (e.key === 'j' || e.key === 'J')) {
         e.preventDefault();
@@ -705,18 +773,7 @@ var JBar = (function () {
     }, true);
 
     window.addEventListener('message', function (e) {
-      if (!e.data) return;
-      if (e.data.type === '__jplay_altj__') {
-        if (jbarVisible) hideJbar(); else showJbar('altj');
-      }
-      if (e.data.type === '__jplay_mousebottom__') {
-        showJbar('mouse');
-      }
-      if (e.data.type === '__jplay_win_closed__' && e.data.id) {
-        for (var i = 0; i < sessions.length; i++) {
-          if (sessions[i].id === e.data.id) { closeGame(e.data.id); break; }
-        }
-      }
+      handleBridgeMessage(e.data);
     });
 
     window.addEventListener('blur', function () {

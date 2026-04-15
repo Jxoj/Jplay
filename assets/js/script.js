@@ -40,6 +40,7 @@ var state = {
   rippleEnabled: true, reactivity: 60, animationsEnabled: true,
   modalOpen: false, detailOpen: false, currentGame: null,
   library: [], customBgUrl: null, selectedWallpaperUrl: null,
+  customBgIsVideo: false,
   bgDim: 0.55, bgBlur: 0, gamesLoaded: false,
 };
 
@@ -177,6 +178,93 @@ window.JplayDebugPageState = function() {
 
 /* ── DATA ───────────────────────────────────────── */
 var API_BASE  = 'https://jxoplay.netlify.app';
+var BG_PREFS_KEY = 'jplay_background_settings';
+
+function isVideoUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  var clean = url.split('#')[0].split('?')[0].toLowerCase();
+  return /\.(mp4|webm|ogg|mov|m4v)$/.test(clean);
+}
+
+function getBgVideoEl(createIfMissing) {
+  var layer = el('bg-image-layer');
+  if (!layer) return null;
+  var video = layer.querySelector('.bg-media-video');
+  if (!video && createIfMissing) {
+    video = mk('video', 'bg-media-video');
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('preload', 'auto');
+    layer.appendChild(video);
+  }
+  return video;
+}
+
+function clearBgVideo() {
+  var video = getBgVideoEl(false);
+  if (!video) return;
+  video.pause();
+  video.removeAttribute('src');
+  try { video.load(); } catch(e) {}
+  video.remove();
+}
+
+function setBgVideo(url) {
+  if (!url) return;
+  var video = getBgVideoEl(true);
+  if (!video) return;
+  if (video.getAttribute('src') !== url) video.setAttribute('src', url);
+  var playPromise = video.play();
+  if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(function(){});
+}
+
+function syncBackgroundSourceZones(source) {
+  var upz = el('bg-upload-zone'), wpz = el('wallpaper-picker-zone');
+  if (upz) upz.style.display = source === 'custom' ? '' : 'none';
+  if (wpz) wpz.style.display = source === 'wallpaper' ? '' : 'none';
+}
+
+function saveBackgroundPrefs() {
+  var srcEl = el('bg-source-select');
+  var source = srcEl ? srcEl.value : 'image';
+  if (source === 'custom') source = 'image';
+  try {
+    localStorage.setItem(BG_PREFS_KEY, JSON.stringify({
+      source: source,
+      wallpaperUrl: state.selectedWallpaperUrl || '',
+      dim: state.bgDim,
+      blur: state.bgBlur
+    }));
+  } catch(e) {}
+}
+
+function loadBackgroundPrefs() {
+  var srcEl = el('bg-source-select');
+  if (!srcEl) return;
+  try {
+    var raw = localStorage.getItem(BG_PREFS_KEY);
+    if (!raw) return;
+    var data = JSON.parse(raw) || {};
+    if (typeof data.wallpaperUrl === 'string' && data.wallpaperUrl) {
+      state.selectedWallpaperUrl = data.wallpaperUrl;
+    }
+    if (typeof data.dim === 'number' && isFinite(data.dim)) {
+      state.bgDim = Math.max(0, Math.min(0.9, data.dim));
+    }
+    if (typeof data.blur === 'number' && isFinite(data.blur)) {
+      state.bgBlur = Math.max(0, Math.min(20, data.blur));
+    }
+    var source = (typeof data.source === 'string') ? data.source : '';
+    if (['image', 'wallpaper', 'color'].indexOf(source) !== -1) {
+      srcEl.value = source;
+    } else if (state.selectedWallpaperUrl) {
+      srcEl.value = 'wallpaper';
+    }
+  } catch(e) {}
+}
 
 function loadGames() {
   if (TEST_MODE) {
@@ -224,10 +312,32 @@ function applyBackground() {
   var layer  = el('bg-image-layer'); if (!layer) return;
   var srcEl  = el('bg-source-select');
   var src    = srcEl ? srcEl.value : 'image';
-  if      (src === 'image')                           layer.style.backgroundImage = "url('assets/imgs/background.jpg')";
-  else if (src === 'custom' && state.customBgUrl)     layer.style.backgroundImage = "url('" + state.customBgUrl + "')";
-  else if (src === 'wallpaper' && state.selectedWallpaperUrl) layer.style.backgroundImage = "url('" + state.selectedWallpaperUrl + "')";
-  else if (src === 'color')                           layer.style.backgroundImage = 'none';
+  if (src === 'image') {
+    clearBgVideo();
+    layer.style.backgroundImage = "url('assets/imgs/background.jpg')";
+  } else if (src === 'custom' && state.customBgUrl) {
+    if (state.customBgIsVideo) {
+      layer.style.backgroundImage = 'none';
+      setBgVideo(state.customBgUrl);
+    } else {
+      clearBgVideo();
+      layer.style.backgroundImage = "url('" + state.customBgUrl + "')";
+    }
+  } else if (src === 'wallpaper' && state.selectedWallpaperUrl) {
+    if (isVideoUrl(state.selectedWallpaperUrl)) {
+      layer.style.backgroundImage = 'none';
+      setBgVideo(state.selectedWallpaperUrl);
+    } else {
+      clearBgVideo();
+      layer.style.backgroundImage = "url('" + state.selectedWallpaperUrl + "')";
+    }
+  } else if (src === 'color') {
+    clearBgVideo();
+    layer.style.backgroundImage = 'none';
+  } else {
+    clearBgVideo();
+    layer.style.backgroundImage = "url('assets/imgs/background.jpg')";
+  }
   layer.style.filter = state.bgBlur > 0 ? 'blur(' + state.bgBlur + 'px)' : '';
   document.documentElement.style.setProperty('--bg-dim', state.bgDim);
 }
@@ -240,17 +350,36 @@ function renderWallpaperPicker() {
   state.wallpapers.forEach(function(wp) {
     var card  = mk('div','wallpaper-card');
     if (wp.color) card.style.background = wp.color;
-    var img   = mk('img'); img.src = wp.thumbnail || wp.url || ''; img.alt = wp.name; img.loading = 'lazy';
+    var thumbSrc = wp.thumbnail || wp.url || '';
+    var media;
+    if (isVideoUrl(thumbSrc)) {
+      media = mk('video', 'wallpaper-thumb');
+      media.src = thumbSrc;
+      media.muted = true;
+      media.loop = true;
+      media.autoplay = true;
+      media.playsInline = true;
+      media.setAttribute('playsinline', '');
+      media.setAttribute('preload', 'metadata');
+      var thumbPlay = media.play();
+      if (thumbPlay && typeof thumbPlay.catch === 'function') thumbPlay.catch(function(){});
+    } else {
+      media = mk('img', 'wallpaper-thumb');
+      media.src = thumbSrc;
+      media.alt = wp.name;
+      media.loading = 'lazy';
+    }
     var lbl   = mk('span','wallpaper-label'); lbl.textContent = wp.name;
-    card.appendChild(img); card.appendChild(lbl);
+    if (state.selectedWallpaperUrl && wp.url === state.selectedWallpaperUrl) card.classList.add('selected');
+    card.appendChild(media); card.appendChild(lbl);
     card.addEventListener('click', function() {
       grid.querySelectorAll('.wallpaper-card').forEach(function(c){ c.classList.remove('selected'); });
       card.classList.add('selected');
-      state.selectedWallpaperUrl = wp.url;
+      state.selectedWallpaperUrl = wp.url || null;
       var sel = el('bg-source-select'); if (sel) sel.value = 'wallpaper';
-      var wpz = el('wallpaper-picker-zone'); if (wpz) wpz.style.display = '';
-      var upz = el('bg-upload-zone');       if (upz) upz.style.display = 'none';
+      syncBackgroundSourceZones('wallpaper');
       applyBackground();
+      saveBackgroundPrefs();
     });
     grid.appendChild(card);
   });
@@ -494,40 +623,77 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   /* ── Background controls ── */
+  loadBackgroundPrefs();
   applyBackground();
   var bgSel = el('bg-source-select');
-  if (bgSel) bgSel.addEventListener('change', function(e) {
-    var upz=el('bg-upload-zone'), wpz=el('wallpaper-picker-zone');
-    if (upz) upz.style.display = e.target.value==='custom'    ? '' : 'none';
-    if (wpz) wpz.style.display = e.target.value==='wallpaper' ? '' : 'none';
-    applyBackground();
-  });
+  if (bgSel) {
+    syncBackgroundSourceZones(bgSel.value);
+    bgSel.addEventListener('change', function(e) {
+      syncBackgroundSourceZones(e.target.value);
+      applyBackground();
+      saveBackgroundPrefs();
+    });
+  }
   var dimSlider=el('bg-dim-slider');
-  if (dimSlider) dimSlider.addEventListener('input', function(e){
-    state.bgDim=parseInt(e.target.value)/100;
-    var v=el('bg-dim-value'); if(v) v.textContent=e.target.value+'%';
-    applyBackground();
-  });
+  if (dimSlider) {
+    var initDim = Math.round(state.bgDim * 100);
+    dimSlider.value = String(initDim);
+    var dimValue=el('bg-dim-value'); if(dimValue) dimValue.textContent=initDim+'%';
+    dimSlider.addEventListener('input', function(e){
+      state.bgDim=parseInt(e.target.value)/100;
+      var v=el('bg-dim-value'); if(v) v.textContent=e.target.value+'%';
+      applyBackground();
+      saveBackgroundPrefs();
+    });
+  }
   var blurSlider=el('bg-blur-slider');
-  if (blurSlider) blurSlider.addEventListener('input', function(e){
-    state.bgBlur=parseInt(e.target.value);
-    var v=el('bg-blur-value'); if(v) v.textContent=e.target.value+'px';
-    applyBackground();
-  });
+  if (blurSlider) {
+    var initBlur = Math.round(state.bgBlur);
+    blurSlider.value = String(initBlur);
+    var blurValue=el('bg-blur-value'); if(blurValue) blurValue.textContent=initBlur+'px';
+    blurSlider.addEventListener('input', function(e){
+      state.bgBlur=parseInt(e.target.value);
+      var v=el('bg-blur-value'); if(v) v.textContent=e.target.value+'px';
+      applyBackground();
+      saveBackgroundPrefs();
+    });
+  }
 
   /* File upload */
   var bgFile=el('bg-file-input'), dropArea=el('upload-drop-area'), preview=el('upload-preview');
   function handleFile(file) {
-    if (!file||!file.type.startsWith('image/')) return;
+    if (!file) return;
+    var mime = (file.type || '').toLowerCase();
+    var isVideo = mime ? mime.indexOf('video/') === 0 : isVideoUrl(file.name || '');
+    var isImage = mime ? mime.indexOf('image/') === 0 : /\.(png|jpe?g|gif|webp|bmp|svg)$/.test((file.name || '').toLowerCase());
+    if (!isImage && !isVideo) return;
     if (state.customBgUrl) URL.revokeObjectURL(state.customBgUrl);
     state.customBgUrl=URL.createObjectURL(file);
-    var pi=el('upload-preview-img'); if(pi) pi.src=state.customBgUrl;
+    state.customBgIsVideo = isVideo;
+    var pi=el('upload-preview-img'), pv=el('upload-preview-video');
+    if (state.customBgIsVideo) {
+      if (pi) { pi.src=''; pi.style.display='none'; }
+      if (pv) {
+        pv.src=state.customBgUrl;
+        pv.style.display='block';
+        var vp=pv.play(); if(vp&&typeof vp.catch==='function') vp.catch(function(){});
+      }
+    } else {
+      if (pv) {
+        pv.pause();
+        pv.removeAttribute('src');
+        try { pv.load(); } catch(e) {}
+        pv.style.display='none';
+      }
+      if (pi) { pi.src=state.customBgUrl; pi.style.display='block'; }
+    }
     var pn=el('upload-preview-name'); if(pn) pn.textContent=file.name;
     if(dropArea) dropArea.style.display='none';
     if(preview)  preview.style.display='';
     var sel=el('bg-source-select'); if(sel) sel.value='custom';
-    var upz=el('bg-upload-zone'); if(upz) upz.style.display='';
+    syncBackgroundSourceZones('custom');
     applyBackground();
+    saveBackgroundPrefs();
   }
   var bb=el('upload-browse-btn');  if(bb) bb.addEventListener('click', function(e){e.stopPropagation();if(bgFile)bgFile.click();});
   var cb=el('upload-change-btn');  if(cb) cb.addEventListener('click', function(e){e.stopPropagation();if(bgFile)bgFile.click();});
@@ -650,6 +816,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (rstBtn) rstBtn.addEventListener('click', function() {
     document.body.dataset.theme='dark'; document.body.dataset.density='normal'; document.body.dataset.animations='on';
     state.rippleEnabled=true; state.reactivity=60; state.animationsEnabled=true; state.bgDim=0.55; state.bgBlur=0;
+    state.selectedWallpaperUrl=null;
+    if (state.customBgUrl) {
+      try { URL.revokeObjectURL(state.customBgUrl); } catch(e) {}
+    }
+    state.customBgUrl=null;
+    state.customBgIsVideo=false;
     var resets={'theme-select':'dark','density-select':'normal','reactivity-slider':'60','bg-dim-slider':'55','bg-blur-slider':'0','tab-title-input':'Home','favicon-input':'https://ssl.gstatic.com/classroom/favicon.png','bg-source-select':'image','redirect-url':'https://classroom.google.com','global-password-input':'','mimic-site-select':'google_classroom','mimic-custom-url':''};
     for (var id in resets) { var e2=el(id); if(e2) e2.value=resets[id]; }
     var rv=el('reactivity-value');if(rv)rv.textContent='60';
@@ -661,9 +833,22 @@ document.addEventListener('DOMContentLoaded', function() {
     var nh=el('no-history-toggle'); if(nh) nh.checked=true;
     var upz=el('bg-upload-zone');  if(upz)upz.style.display='none';
     var wpz=el('wallpaper-picker-zone');if(wpz)wpz.style.display='none';
+    var preview=el('upload-preview'); if(preview) preview.style.display='none';
+    var dropArea=el('upload-drop-area'); if(dropArea) dropArea.style.display='';
+    var pImg=el('upload-preview-img'); if(pImg){ pImg.src=''; pImg.style.display='block'; }
+    var pVid=el('upload-preview-video');
+    if(pVid){
+      pVid.pause();
+      pVid.removeAttribute('src');
+      try { pVid.load(); } catch(e) {}
+      pVid.style.display='none';
+    }
+    var selectedCards=document.querySelectorAll('.wallpaper-card.selected');
+    for (var si=0; si<selectedCards.length; si++) selectedCards[si].classList.remove('selected');
     var mcr=el('mimic-custom-row'); if(mcr) mcr.style.display='none';
     updPw(); applyBackground();
     try { localStorage.removeItem('jplay_global_password'); } catch(e){}
+    try { localStorage.removeItem(BG_PREFS_KEY); } catch(e){}
     if (typeof Hackwize!=='undefined') {
       Hackwize.setCloak('Home','https://ssl.gstatic.com/classroom/favicon.png');
       if (typeof Hackwize.setRedirectUrl === 'function') Hackwize.setRedirectUrl('https://classroom.google.com');

@@ -7,8 +7,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Home</title>
-  <link rel="stylesheet" href="assets/css/style.css?v=20260412" />
-  <link rel="stylesheet" href="assets/css/jbar.css?v=20260412" />
+  <link rel="stylesheet" href="assets/css/style.css?v=20260415" />
+  <link rel="stylesheet" href="assets/css/jbar.css?v=20260415" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet" />
   <style>
@@ -241,15 +241,16 @@
               <div class="wallpaper-grid" id="wallpaper-grid"><span class="wallpaper-empty">Loading…</span></div>
             </div>
             <div style="display:none" id="bg-upload-zone">
-              <input type="file" id="bg-file-input" accept="image/*" style="display:none" />
+              <input type="file" id="bg-file-input" accept="image/*,video/*" style="display:none" />
               <div class="upload-drop-area" id="upload-drop-area">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-                <span class="upload-label">Drop image here</span>
+                <span class="upload-label">Drop image or video here</span>
                 <span class="upload-hint">or click to browse</span>
                 <button class="upload-browse-btn" id="upload-browse-btn">Browse</button>
               </div>
-              <div style="display:none" id="upload-preview">
+              <div class="upload-preview" style="display:none" id="upload-preview">
                 <img id="upload-preview-img" src="" alt="Preview" />
+                <video id="upload-preview-video" muted loop playsinline style="display:none"></video>
                 <div class="upload-preview-info">
                   <span id="upload-preview-name"></span>
                   <button class="upload-change-btn" id="upload-change-btn">Change</button>
@@ -463,9 +464,9 @@
 </div>
 
 <!-- hackwize BEFORE script -->
-<script src="assets/js/apis/hackwize.js?v=20260412"></script>
-<script src="assets/js/jbar.js?v=20260412"></script>
-<script src="assets/js/script.js?v=20260412"></script>
+<script src="assets/js/apis/hackwize.js?v=20260415c"></script>
+<script src="assets/js/jbar.js?v=20260415c"></script>
+<script src="assets/js/script.js?v=20260415c"></script>
 
 <script>
 /* ── hwPreset ────────────────────────────────────────────────────────────── */
