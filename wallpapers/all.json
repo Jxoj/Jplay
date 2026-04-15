@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sr",
+    "name": "Sunrise",
+    "url": "https://jxoplay.netlify.app/wallpapers/sunrise.jpg",
+    "thumbnail": "https://jxoplay.netlify.app/wallpapers/sunrise.jpg",
+    "color": "#0a1a2a",
+    "tags": ["nature", "mountains", "sky"]
+  },
+  {
+    "id": "greendotsvid",
+    "name": "Abstract Green Video",
+    "url": "https://jxoplay.netlify.app/wallpapers/abstract_green.mp4",
+    "thumbnail": "https://jxoplay.netlify.app/wallpapers/abstract_green.mp4",
+    "color": "#0a1a2a",
+    "tags": ["abstract", "video"]
+  },
+  {
+    "id": "bluewave",
+    "name": "Blue Wave",
+    "url": "https://jxoplay.netlify.app/wallpapers/blue_wave.mp4",
+    "thumbnail": "https://jxoplay.netlify.app/wallpapers/blue_wave.mp4",
+    "color": "#0a1a2a",
+    "tags": ["abstract", "video"]
+  }
+]
