@@ -24,18 +24,5 @@
     "accent": "#40300d",
     "featured": true,
     "tags": ["unblocked", "netlify", "libary"]
-  },
-  {
-    "id": "c15x",
-    "title": "Classroom 15x",
-    "description": "A libary of hundreds of games, Ported from github.",
-    "category": "libary",
-    "url": "https://class15x.netlify.app",
-    "icon": "https://jxoplay.netlify.app/games/class15x/icon.png",
-    "background": "https://jxoplay.netlify.app/games/class15x/background.png",
-    "color": "#c4a051",
-    "accent": "#40300d",
-    "featured": true,
-    "tags": ["unblocked", "netlify", "libary"]
   }
 ]
