@@ -24,5 +24,18 @@
     "accent": "#40300d",
     "featured": true,
     "tags": ["unblocked", "netlify", "libary"]
+  },
+    {
+    "id": "escroad3",
+    "title": "Escape Road 3",
+    "description": "A game where you need to run from the police, 3rd edtion",
+    "category": "fun",
+    "url": "https://escr3.netlify.app",
+    "icon": "https://jxoplay.netlify.app/games/escroad3/icon.png",
+    "background": "https://jxoplay.netlify.app/games/escroad3/background.png",
+    "color": "#c4a051",
+    "accent": "#40300d",
+    "featured": true,
+    "tags": ["unblocked", "netlify", "car"]
   }
 ]
