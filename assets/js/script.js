@@ -177,7 +177,7 @@ window.JplayDebugPageState = function() {
 };
 
 /* ── DATA ───────────────────────────────────────── */
-var API_BASE  = 'https://jxoplay.netlify.app';
+var API_BASE  = 'https://jxo-play.netlify.app';
 var BG_PREFS_KEY = 'jplay_background_settings';
 
 function isVideoUrl(url) {
